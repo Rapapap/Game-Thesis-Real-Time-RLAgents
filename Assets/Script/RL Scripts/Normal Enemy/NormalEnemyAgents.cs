@@ -47,7 +47,6 @@ public class NormalEnemyAgent : Agent
     private const float OBSTACLE_DETECTION_DISTANCE = 2f;
     private const float CHASE_MOVEMENT_THRESHOLD = 0.05f; 
     private const float CHASE_REWARD_INTERVAL = 0.5f;
-    private const float OBSTACLE_AVOIDANCE_STRENGTH = 2.5f;
 
     private Vector3 initialPosition;
     private string currentState = "Idle";
@@ -61,6 +60,12 @@ public class NormalEnemyAgent : Agent
     private Vector3 lastPositionForChaseReward;
     private float chaseMovementAccumulator = 0f;
     private bool isCurrentlyChasing = false;
+    
+    // Enhanced obstacle avoidance variables
+    private float obstacleCollisionTimer = 0f;
+    private const float OBSTACLE_COLLISION_PUNISHMENT_INTERVAL = 0.1f;
+    private int consecutiveObstacleHits = 0;
+    private const int MAX_CONSECUTIVE_HITS = 5;
     #endregion
 
     #region Agent Lifecycle
@@ -184,6 +189,11 @@ public class NormalEnemyAgent : Agent
             sensor.AddObservation(0f);
             sensor.AddObservation(0f);
         }
+
+        // Additional obstacle avoidance observations (2)
+        Vector2 avoidanceDirection = obstacleDetection.GetAvoidanceDirection();
+        sensor.AddObservation(avoidanceDirection.x);
+        sensor.AddObservation(avoidanceDirection.y);
     }
 
     public override void OnActionReceived(ActionBuffers actions)
@@ -195,6 +205,7 @@ public class NormalEnemyAgent : Agent
         UpdateBehaviorAndRewards();
         CheckStuckState();
         CheckEpisodeEnd();
+        UpdateObstacleCollisionTimer();
     }
 
     public override void Heuristic(in ActionBuffers actionsOut)
@@ -239,8 +250,8 @@ public class NormalEnemyAgent : Agent
         if (agentRigidbody == null) return;
 
         agentRigidbody.mass = 1f;
-        agentRigidbody.linearDamping = 1f;  // Reduced for better responsiveness
-        agentRigidbody.angularDamping = 3f; // Reduced for better turning
+        agentRigidbody.linearDamping = 2f;  // Increased for better control
+        agentRigidbody.angularDamping = 5f; // Increased to prevent over-rotation
         agentRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
         agentRigidbody.collisionDetectionMode = CollisionDetectionMode.Continuous;
         agentRigidbody.constraints = RigidbodyConstraints.FreezeRotationX | 
@@ -263,8 +274,6 @@ public class NormalEnemyAgent : Agent
             }
         }
     }
-
-    // ... [Other initialization methods remain the same] ...
 
     private Transform[] FindPatrolPoints()
     {
@@ -311,6 +320,10 @@ public class NormalEnemyAgent : Agent
         chaseMovementAccumulator = 0f;
         isCurrentlyChasing = false;
         previousDistanceToPlayer = float.MaxValue;
+
+        // Reset obstacle collision tracking
+        obstacleCollisionTimer = 0f;
+        consecutiveObstacleHits = 0;
 
         patrolSystem?.Reset();
         movementController?.Reset();
@@ -386,18 +399,7 @@ public class NormalEnemyAgent : Agent
         float rotation = Mathf.Clamp(actions.ContinuousActions[2], -1f, 1f);
         bool shouldAttack = actions.DiscreteActions[0] == 1;
 
-        // Get obstacle avoidance adjustments
-        Vector2 obstacleAvoidance = obstacleDetection.GetAvoidanceDirection();
-        
-        // Apply obstacle avoidance to movement
-        forward += obstacleAvoidance.y * OBSTACLE_AVOIDANCE_STRENGTH;
-        right += obstacleAvoidance.x * OBSTACLE_AVOIDANCE_STRENGTH;
-        
-        // Clamp after obstacle avoidance
-        forward = Mathf.Clamp(forward, -1f, 1f);
-        right = Mathf.Clamp(right, -1f, 1f);
-
-        // Handle different behavioral states
+        // Handle different behavioral states with integrated obstacle avoidance
         if (IsAgentKnockedBack())
         {
             HandleKnockbackState();
@@ -423,6 +425,7 @@ public class NormalEnemyAgent : Agent
         currentState = "Knocked Back";
         currentAction = "Recovering";
         isCurrentlyChasing = false;
+        movementController.ProcessMovementWithObstacleAvoidance(0f, 0f, 0f, obstacleDetection);
     }
 
     private void HandleFleeingState(float forward, float right, float rotation)
@@ -439,7 +442,11 @@ public class NormalEnemyAgent : Agent
             float fleeForward = Mathf.Max(forward, localFleeDir.z * 1.2f);
             float fleeRight = right + localFleeDir.x * 0.8f;
             
-            movementController.ProcessMovement(fleeForward, fleeRight, rotation);
+            movementController.ProcessMovementWithObstacleAvoidance(fleeForward, fleeRight, rotation, obstacleDetection);
+        }
+        else
+        {
+            movementController.ProcessMovementWithObstacleAvoidance(forward, right, rotation, obstacleDetection);
         }
     }
 
@@ -459,8 +466,10 @@ public class NormalEnemyAgent : Agent
 
         if (playerInRange)
         {
-            movementController.FaceTarget(playerPos);
+            movementController.FaceTargetSmoothly(playerPos);
             ProcessAttackAction(shouldAttack);
+            // Minimal movement when in attack range to avoid obstacles
+            movementController.ProcessMovementWithObstacleAvoidance(0f, 0f, 0f, obstacleDetection);
         }
         else
         {
@@ -470,7 +479,7 @@ public class NormalEnemyAgent : Agent
             float chaseForward = Mathf.Max(forward, localDirection.z * 0.8f);
             float chaseRight = right + localDirection.x * 0.3f;
             
-            movementController.ProcessMovement(chaseForward, chaseRight, rotation);
+            movementController.ProcessMovementWithObstacleAvoidance(chaseForward, chaseRight, rotation, obstacleDetection);
         }
     }
 
@@ -493,6 +502,9 @@ public class NormalEnemyAgent : Agent
                     rewardConfig.AddPatrolReward(this);
                 }
                 currentAction = patrolSystem.IsIdlingAtSpawn() ? "Idling" : "Patrolling";
+                
+                // Stop movement when reached target
+                movementController.ProcessMovementWithObstacleAvoidance(0f, 0f, 0f, obstacleDetection);
             }
             else
             {
@@ -502,7 +514,7 @@ public class NormalEnemyAgent : Agent
                 float patrolForward = Mathf.Max(forward, localDirection.z * 0.6f);
                 float patrolRight = right + localDirection.x * 0.4f;
                 
-                movementController.ProcessMovement(patrolForward, patrolRight, rotation);
+                movementController.ProcessMovementWithObstacleAvoidance(patrolForward, patrolRight, rotation, obstacleDetection);
             }
 
             if (patrolSystem.IsIdlingAtSpawn())
@@ -512,7 +524,7 @@ public class NormalEnemyAgent : Agent
         }
         else
         {
-            movementController.ProcessMovement(forward, right, rotation);
+            movementController.ProcessMovementWithObstacleAvoidance(forward, right, rotation, obstacleDetection);
             currentAction = "Exploring";
             rewardConfig.AddPatrolWrongStepPunishment(this);
         }
@@ -567,8 +579,14 @@ public class NormalEnemyAgent : Agent
             stuckTimer += Time.fixedDeltaTime;
             if (stuckTimer >= STUCK_TIME_LIMIT)
             {
-                AddReward(-0.1f);
+                AddReward(-0.2f); // Increased punishment for being stuck
                 stuckTimer = 0f;
+                
+                // Additional punishment if stuck near obstacles
+                if (obstacleDetection.IsObstacleWithin(1.5f))
+                {
+                    AddReward(-0.1f);
+                }
             }
         }
         else
@@ -577,6 +595,14 @@ public class NormalEnemyAgent : Agent
         }
         
         lastPosition = transform.position;
+    }
+
+    private void UpdateObstacleCollisionTimer()
+    {
+        if (obstacleCollisionTimer > 0f)
+        {
+            obstacleCollisionTimer -= Time.fixedDeltaTime;
+        }
     }
     #endregion
 
@@ -592,7 +618,26 @@ public class NormalEnemyAgent : Agent
 
         obstacleDetection.UpdateObstacleDetection();
         ProcessRewards(Time.deltaTime);
+        ProcessObstacleAvoidanceRewards();
         debugDisplay.UpdateCumulativeReward(GetCumulativeReward());
+    }
+
+    private void ProcessObstacleAvoidanceRewards()
+    {
+        // Reward for maintaining good distance from obstacles
+        var obstacles = obstacleDetection.GetObstacleDistances();
+        float minDistance = Mathf.Min(obstacles.forward, obstacles.right, obstacles.left, obstacles.back);
+        
+        if (minDistance > OBSTACLE_DETECTION_DISTANCE * 0.8f)
+        {
+            // Small positive reward for maintaining safe distance
+            AddReward(0.001f * Time.fixedDeltaTime);
+        }
+        else if (minDistance < OBSTACLE_DETECTION_DISTANCE * 0.3f)
+        {
+            // Punishment for getting too close to obstacles
+            AddReward(-0.005f * Time.fixedDeltaTime);
+        }
     }
 
     private void ProcessRewards(float deltaTime)
@@ -704,14 +749,64 @@ public class NormalEnemyAgent : Agent
     void OnGUI()
     {
         if (showDebugInfo)
-            debugDisplay.DisplayDebugInfo(gameObject.name, currentState, currentAction, debugTextOffset, debugTextColor, debugFontSize, patrolSystem.PatrolLoopsCompleted);
+        {
+            debugDisplay.DisplayDebugInfo(gameObject.name, currentState, currentAction, debugTextOffset, 
+                debugTextColor, debugFontSize, patrolSystem.PatrolLoopsCompleted);
+        }
     }
 
     void OnCollisionEnter(Collision collision)
     {
-        if (((1 << collision.gameObject.layer) & LayerMask.GetMask("Wall", "Obstacle", "Environment")) != 0)
+        if (((1 << collision.gameObject.layer) & LayerMask.GetMask("Wall", "Obstacle", "Environment", "Gate")) != 0)
         {
-            rewardConfig.AddObstaclePunishment(this, Time.deltaTime);
+            // Enhanced obstacle collision punishment
+            if (obstacleCollisionTimer <= 0f)
+            {
+                consecutiveObstacleHits++;
+                
+                // Progressive punishment for consecutive hits
+                float punishmentMultiplier = 1f + (consecutiveObstacleHits * 0.5f);
+                float basePunishment = -0.1f;
+                
+                rewardConfig.AddObstaclePunishment(this, Time.deltaTime * punishmentMultiplier);
+                AddReward(basePunishment * punishmentMultiplier);
+                
+                // Reset timer to prevent spam punishment
+                obstacleCollisionTimer = OBSTACLE_COLLISION_PUNISHMENT_INTERVAL;
+                
+                // Force the agent to stop and reconsider
+                agentRigidbody.linearVelocity *= 0.5f;
+                
+                Debug.Log($"{gameObject.name} hit obstacle: {collision.gameObject.name}, consecutive hits: {consecutiveObstacleHits}");
+            }
+        }
+        else
+        {
+            // Reset consecutive hits when touching non-obstacles
+            consecutiveObstacleHits = 0;
+        }
+    }
+
+    void OnCollisionStay(Collision collision)
+    {
+        if (((1 << collision.gameObject.layer) & LayerMask.GetMask("Wall", "Obstacle", "Environment", "Gate")) != 0)
+        {
+            // Continuous punishment for staying against obstacles
+            if (obstacleCollisionTimer <= 0f)
+            {
+                AddReward(-0.05f * Time.fixedDeltaTime);
+                obstacleCollisionTimer = OBSTACLE_COLLISION_PUNISHMENT_INTERVAL;
+            }
+        }
+    }
+
+    void OnCollisionExit(Collision collision)
+    {
+        if (((1 << collision.gameObject.layer) & LayerMask.GetMask("Wall", "Obstacle", "Environment", "Gate")) != 0)
+        {
+            // Small reward for successfully avoiding/leaving obstacles
+            AddReward(0.02f);
+            consecutiveObstacleHits = Mathf.Max(0, consecutiveObstacleHits - 1);
         }
     }
     #endregion
@@ -726,13 +821,20 @@ public class EnhancedMovementController
     private readonly float rotationSpeed;
     private readonly float maxVelocity;
 
+    // Enhanced rotation control
+    private float targetRotationY;
+    private bool isRotating = false;
+    private const float ROTATION_THRESHOLD = 5f; // Degrees
+    private const float ROTATION_COMPLETION_THRESHOLD = 2f; // Degrees
+
     public EnhancedMovementController(Rigidbody rigidbody, Transform transform, float moveSpeed, float rotationSpeed)
     {
         agentRigidbody = rigidbody;
         agentTransform = transform;
-        this.moveSpeed = moveSpeed; // Use actual moveSpeed value without multiplication
+        this.moveSpeed = moveSpeed;
         this.rotationSpeed = rotationSpeed;
-        maxVelocity = moveSpeed * 1.5f; // Dynamic max velocity based on move speed
+        maxVelocity = moveSpeed * 1.2f;
+        targetRotationY = transform.eulerAngles.y;
     }
 
     public void Reset()
@@ -742,20 +844,127 @@ public class EnhancedMovementController
             agentRigidbody.linearVelocity = Vector3.zero;
             agentRigidbody.angularVelocity = Vector3.zero;
         }
+        targetRotationY = agentTransform.eulerAngles.y;
+        isRotating = false;
+    }
+
+    public void ProcessMovementWithObstacleAvoidance(float forward, float right, float rotation, EnhancedObstacleDetection obstacleDetection)
+    {
+        // Get obstacle avoidance direction
+        Vector2 avoidanceDirection = obstacleDetection.GetAvoidanceDirection();
+        var obstacles = obstacleDetection.GetObstacleDistances();
+        
+        // Determine if we need to prioritize avoidance over intended movement
+        bool needsAvoidance = obstacles.forward < 1.5f || obstacles.right < 1.0f || obstacles.left < 1.0f;
+        
+        Vector3 intendedMovement = Vector3.zero;
+        float intendedRotation = rotation;
+        
+        if (needsAvoidance && avoidanceDirection.magnitude > 0.1f)
+        {
+            // Prioritize obstacle avoidance
+            float avoidanceForward = avoidanceDirection.y;
+            float avoidanceRight = avoidanceDirection.x;
+            
+            // Blend intended movement with avoidance (favor avoidance)
+            float avoidanceWeight = Mathf.Clamp01(1f - obstacles.forward / 2f);
+            forward = Mathf.Lerp(forward, avoidanceForward, avoidanceWeight * 0.8f);
+            right = Mathf.Lerp(right, avoidanceRight, avoidanceWeight * 0.8f);
+            
+            // Calculate rotation needed for avoidance
+            if (avoidanceDirection.magnitude > 0.3f)
+            {
+                Vector3 worldAvoidanceDir = agentTransform.TransformDirection(new Vector3(avoidanceDirection.x, 0, avoidanceDirection.y));
+                float targetAngle = Mathf.Atan2(worldAvoidanceDir.x, worldAvoidanceDir.z) * Mathf.Rad2Deg;
+                float angleDifference = Mathf.DeltaAngle(agentTransform.eulerAngles.y, targetAngle);
+                
+                if (Mathf.Abs(angleDifference) > ROTATION_THRESHOLD)
+                {
+                    intendedRotation = Mathf.Sign(angleDifference) * Mathf.Clamp01(Mathf.Abs(angleDifference) / 90f);
+                }
+            }
+        }
+        
+        // Apply movement
+        ProcessMovement(forward, right, intendedRotation);
+        
+        // Additional safety: reduce speed when very close to obstacles
+        if (obstacles.forward < 0.8f)
+        {
+            Vector3 currentVel = agentRigidbody.linearVelocity;
+            agentRigidbody.linearVelocity = currentVel * 0.7f;
+        }
     }
 
     public void ProcessMovement(float forward, float right, float rotation)
     {
-        // Enhanced movement with proper force application
-        Vector3 moveDirection = (agentTransform.forward * forward + agentTransform.right * right);
-        float magnitude = Mathf.Clamp01(moveDirection.magnitude);
-        moveDirection = moveDirection.normalized;
+        // Enhanced movement with better coordination between movement and rotation
+        Vector3 moveDirection = Vector3.zero;
         
-        // Apply movement force proportional to desired speed
-        Vector3 force = moveDirection * moveSpeed * magnitude * 100f; // Increased force multiplier
-        agentRigidbody.AddForce(force, ForceMode.Force);
+        // Only apply movement if rotation is not too aggressive
+        if (Mathf.Abs(rotation) < 0.7f || !isRotating)
+        {
+            moveDirection = (agentTransform.forward * forward + agentTransform.right * right);
+            float magnitude = Mathf.Clamp01(moveDirection.magnitude);
+            
+            if (magnitude > 0.1f)
+            {
+                moveDirection = moveDirection.normalized * magnitude;
+                
+                // Reduce movement speed during rotation
+                if (Mathf.Abs(rotation) > 0.3f)
+                {
+                    magnitude *= 0.6f;
+                }
+                
+                // Apply movement force
+                Vector3 force = moveDirection * moveSpeed * magnitude * 80f;
+                agentRigidbody.AddForce(force, ForceMode.Force);
+            }
+        }
         
-        // Limit horizontal velocity only
+        // Limit horizontal velocity
+        LimitVelocity();
+        
+        // Enhanced rotation handling
+        HandleRotationSmooth(rotation);
+    }
+
+    private void HandleRotationSmooth(float rotationInput)
+    {
+        const float rotationDeadzone = 0.1f;
+        const float maxAngularVelocity = 180f; // degrees per second
+        
+        if (Mathf.Abs(rotationInput) > rotationDeadzone)
+        {
+            isRotating = true;
+            
+            // Calculate target angular velocity
+            float targetAngularVel = rotationInput * maxAngularVelocity * Mathf.Deg2Rad;
+            
+            // Smooth the angular velocity change
+            float currentAngularVel = agentRigidbody.angularVelocity.y;
+            float smoothedAngularVel = Mathf.Lerp(currentAngularVel, targetAngularVel, 0.4f);
+            
+            agentRigidbody.angularVelocity = new Vector3(0f, smoothedAngularVel, 0f);
+        }
+        else
+        {
+            // Apply strong damping when no rotation input
+            Vector3 currentAngVel = agentRigidbody.angularVelocity;
+            Vector3 dampedAngVel = Vector3.Lerp(currentAngVel, Vector3.zero, 0.8f);
+            agentRigidbody.angularVelocity = new Vector3(0f, dampedAngVel.y, 0f);
+            
+            // Check if rotation has stopped
+            if (Mathf.Abs(dampedAngVel.y) < 0.1f)
+            {
+                isRotating = false;
+            }
+        }
+    }
+
+    private void LimitVelocity()
+    {
         Vector3 velocity = agentRigidbody.linearVelocity;
         Vector3 horizontalVelocity = new Vector3(velocity.x, 0, velocity.z);
         
@@ -764,46 +973,41 @@ public class EnhancedMovementController
             horizontalVelocity = horizontalVelocity.normalized * maxVelocity;
             agentRigidbody.linearVelocity = new Vector3(horizontalVelocity.x, velocity.y, horizontalVelocity.z);
         }
-        
-        // Enhanced rotation handling
-        HandleRotation(rotation);
     }
 
-    private void HandleRotation(float rotationInput)
-    {
-        const float rotationDeadzone = 0.05f;
-        const float dampingFactor = 0.3f;
-        
-        if (Mathf.Abs(rotationInput) > rotationDeadzone)
-        {
-            float targetAngularVelocity = rotationInput * rotationSpeed * Mathf.Deg2Rad;
-            float currentAngularVelocity = agentRigidbody.angularVelocity.y;
-            float smoothedAngularVelocity = Mathf.Lerp(currentAngularVelocity, targetAngularVelocity, dampingFactor);
-            agentRigidbody.angularVelocity = new Vector3(0f, smoothedAngularVelocity, 0f);
-        }
-        else
-        {
-            // Apply damping when no rotation input
-            Vector3 currentAngVel = agentRigidbody.angularVelocity;
-            Vector3 dampedAngVel = Vector3.Lerp(currentAngVel, Vector3.zero, 0.5f);
-            agentRigidbody.angularVelocity = new Vector3(0f, dampedAngVel.y, 0f);
-        }
-    }
-
-    public void FaceTarget(Vector3 targetPosition)
+    public void FaceTargetSmoothly(Vector3 targetPosition)
     {
         Vector3 direction = (targetPosition - agentTransform.position);
         direction.y = 0;
         
         if (direction.sqrMagnitude > 0.01f)
         {
-            Quaternion targetRotation = Quaternion.LookRotation(direction);
-            agentTransform.rotation = Quaternion.Slerp(
-                agentTransform.rotation,
-                targetRotation,
-                rotationSpeed * Time.fixedDeltaTime * 0.02f
-            );
+            float targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
+            float currentAngle = agentTransform.eulerAngles.y;
+            float angleDifference = Mathf.DeltaAngle(currentAngle, targetAngle);
+            
+            if (Mathf.Abs(angleDifference) > ROTATION_COMPLETION_THRESHOLD)
+            {
+                float rotationDirection = Mathf.Sign(angleDifference);
+                float rotationSpeed = Mathf.Clamp01(Mathf.Abs(angleDifference) / 45f);
+                
+                // Apply smooth rotation
+                float targetAngularVelocity = rotationDirection * rotationSpeed * 120f * Mathf.Deg2Rad;
+                agentRigidbody.angularVelocity = new Vector3(0f, targetAngularVelocity, 0f);
+                isRotating = true;
+            }
+            else
+            {
+                agentRigidbody.angularVelocity = Vector3.zero;
+                isRotating = false;
+            }
         }
+    }
+
+    // Legacy method for backward compatibility
+    public void FaceTarget(Vector3 targetPosition)
+    {
+        FaceTargetSmoothly(targetPosition);
     }
 }
 
@@ -832,6 +1036,9 @@ public class EnhancedObstacleDetection
     private ObstacleDistances obstacleDistances;
     private Vector2 avoidanceDirection;
 
+    // Enhanced detection with more rays for better accuracy
+    private readonly float[] rayOffsets = { -0.3f, 0f, 0.3f }; // Left, center, right offsets
+
     public EnhancedObstacleDetection(Transform transform, LayerMask obstacleMask, float distance)
     {
         agentTransform = transform;
@@ -845,83 +1052,131 @@ public class EnhancedObstacleDetection
     {
         Vector3 rayStart = agentTransform.position + Vector3.up * 0.5f;
         
-        // Cast rays in 4 directions
-        float forwardDist = CastRay(rayStart, agentTransform.forward, Color.green);
-        float rightDist = CastRay(rayStart, agentTransform.right, Color.blue);
-        float leftDist = CastRay(rayStart, -agentTransform.right, Color.blue);
-        float backDist = CastRay(rayStart, -agentTransform.forward, Color.yellow);
+        // Cast multiple rays in each direction for better detection
+        float forwardDist = GetMinDistanceInDirection(rayStart, agentTransform.forward);
+        float rightDist = GetMinDistanceInDirection(rayStart, agentTransform.right);
+        float leftDist = GetMinDistanceInDirection(rayStart, -agentTransform.right);
+        float backDist = GetMinDistanceInDirection(rayStart, -agentTransform.forward);
         
         obstacleDistances = new ObstacleDistances(forwardDist, rightDist, leftDist, backDist);
         
-        // Calculate avoidance direction
-        CalculateAvoidanceDirection();
+        // Calculate enhanced avoidance direction
+        CalculateEnhancedAvoidanceDirection();
     }
 
-    private float CastRay(Vector3 origin, Vector3 direction, Color debugColor)
+    private float GetMinDistanceInDirection(Vector3 origin, Vector3 direction)
+    {
+        float minDistance = detectionDistance;
+        
+        foreach (float offset in rayOffsets)
+        {
+            Vector3 rayOrigin = origin + agentTransform.right * offset * 0.5f;
+            float distance = CastSingleRay(rayOrigin, direction);
+            minDistance = Mathf.Min(minDistance, distance);
+        }
+        
+        return minDistance;
+    }
+
+    private float CastSingleRay(Vector3 origin, Vector3 direction)
     {
         RaycastHit hit;
         if (Physics.Raycast(origin, direction, out hit, detectionDistance, obstacleLayerMask))
         {
-            Debug.DrawRay(origin, direction * hit.distance, Color.red);
-            Debug.DrawRay(origin + direction * hit.distance, direction * (detectionDistance - hit.distance), debugColor);
+            // Visual debugging
+            Debug.DrawRay(origin, direction * hit.distance, Color.red, 0.1f);
             return hit.distance;
         }
         else
         {
-            Debug.DrawRay(origin, direction * detectionDistance, debugColor);
+            Debug.DrawRay(origin, direction * detectionDistance, Color.green, 0.1f);
             return detectionDistance;
         }
     }
 
-    private void CalculateAvoidanceDirection()
+    private void CalculateEnhancedAvoidanceDirection()
     {
         Vector2 avoidance = Vector2.zero;
         
-        // Forward obstacle - move backward and to the side with more space
-        if (obstacleDistances.forward < detectionDistance * 0.8f)
+        // More sophisticated avoidance calculation
+        float urgencyThreshold = detectionDistance * 0.7f;
+        float criticalThreshold = detectionDistance * 0.4f;
+        
+        // Forward obstacle handling
+        if (obstacleDistances.forward < urgencyThreshold)
         {
-            float avoidanceStrength = 1f - (obstacleDistances.forward / detectionDistance);
-            avoidance.y -= avoidanceStrength * 0.8f; // Move backward
+            float urgency = 1f - (obstacleDistances.forward / urgencyThreshold);
+            float backwardForce = urgency * 0.9f;
             
-            // Choose side with more space
-            if (obstacleDistances.right > obstacleDistances.left)
+            // Determine best escape direction
+            float leftSpace = obstacleDistances.left / detectionDistance;
+            float rightSpace = obstacleDistances.right / detectionDistance;
+            
+            avoidance.y -= backwardForce;
+            
+            if (leftSpace > rightSpace && leftSpace > 0.5f)
             {
-                avoidance.x += avoidanceStrength * 0.6f; // Move right
+                avoidance.x -= urgency * 0.8f; // Move left
             }
-            else
+            else if (rightSpace > 0.5f)
             {
-                avoidance.x -= avoidanceStrength * 0.6f; // Move left
+                avoidance.x += urgency * 0.8f; // Move right
             }
         }
         
-        // Side obstacles
-        if (obstacleDistances.right < detectionDistance * 0.7f)
+        // Side obstacle handling with different urgency levels
+        if (obstacleDistances.right < urgencyThreshold)
         {
-            float avoidanceStrength = 1f - (obstacleDistances.right / detectionDistance);
-            avoidance.x -= avoidanceStrength * 0.7f; // Move left
+            float urgency = 1f - (obstacleDistances.right / urgencyThreshold);
+            avoidance.x -= urgency * 0.8f; // Move left
+            
+            // If critical, also move backward
+            if (obstacleDistances.right < criticalThreshold)
+            {
+                avoidance.y -= urgency * 0.4f;
+            }
         }
         
-        if (obstacleDistances.left < detectionDistance * 0.7f)
+        if (obstacleDistances.left < urgencyThreshold)
         {
-            float avoidanceStrength = 1f - (obstacleDistances.left / detectionDistance);
-            avoidance.x += avoidanceStrength * 0.7f; // Move right
+            float urgency = 1f - (obstacleDistances.left / urgencyThreshold);
+            avoidance.x += urgency * 0.8f; // Move right
+            
+            // If critical, also move backward
+            if (obstacleDistances.left < criticalThreshold)
+            {
+                avoidance.y -= urgency * 0.4f;
+            }
         }
         
-        // Back obstacle - move forward
+        // Back obstacle - less critical but still important
         if (obstacleDistances.back < detectionDistance * 0.6f)
         {
-            float avoidanceStrength = 1f - (obstacleDistances.back / detectionDistance);
-            avoidance.y += avoidanceStrength * 0.5f; // Move forward
+            float urgency = 1f - (obstacleDistances.back / (detectionDistance * 0.6f));
+            avoidance.y += urgency * 0.6f; // Move forward
         }
         
+        // Clamp and smooth the avoidance direction
         avoidanceDirection = Vector2.ClampMagnitude(avoidance, 1f);
+        
+        // Apply smoothing to avoid jittery movement
+        const float smoothing = 0.3f;
+        avoidanceDirection = Vector2.Lerp(avoidanceDirection, avoidance, smoothing);
     }
 
     public ObstacleDistances GetObstacleDistances() => obstacleDistances;
     public Vector2 GetAvoidanceDirection() => avoidanceDirection;
     
     public bool IsObstacleAhead() => obstacleDistances.forward < detectionDistance * 0.8f;
-    public bool IsObstacleWithin(float distance) => obstacleDistances.forward <= distance;
+    public bool IsObstacleWithin(float distance) => 
+        obstacleDistances.forward <= distance || 
+        obstacleDistances.right <= distance || 
+        obstacleDistances.left <= distance;
+    
+    public bool IsSurrounded() =>
+        obstacleDistances.forward < detectionDistance * 0.6f &&
+        obstacleDistances.right < detectionDistance * 0.6f &&
+        obstacleDistances.left < detectionDistance * 0.6f;
 }
 
 public class DebugDisplay
