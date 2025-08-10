@@ -11,21 +11,22 @@ public class NormalEnemyRewards : MonoBehaviour
     [Header("Major Rewards/Punishments (+0.5 to +1 / -0.5 to -1)")]
     public float DetectPlayerReward = +0.5f;
     public float PatrolCompleteReward = +0.5f;
-    public float ChasePlayerReward = +1f;
-    public float AttackPlayerReward = +1f;
-    public float HitByPlayerPunishment = -0.5f;
-    public float ObstaclePunishment = -0.5f;
+    public float ChasePlayerReward = +0.9f;
+    public float AttackPlayerReward = +0.8f;
+    public float HitByPlayerPunishment = -0.7f;
+    public float ObstaclePunishment = -0.8f;
 
     [Header("Rewards/Punishments (+0.005 to +0.5 / -0.005 to -0.5)")]
     public float PatrolStepReward = +0.015f;
-    public float ChaseStepReward = +0.020f;
-    public float IdlePunishment = -0.005f;
-    public float NoMovementPunishment = -0.015f;
+    public float PatrolWrongStepPunishment = -0.01f;
+    public float NoMovementPunishment = -0.010f;
     public float ApproachPlayerReward = +0.01f;
-    public float StayFarFromPlayerPunishment = -0.05f;
+    public float ChaseStepReward = +0.010f;
     public float DoesntChasePlayerPunishment = -0.05f;
-    public float FleeReward = +0.05f;
-    public float FleePunishment = -0.03f;
+    public float FailApproachPlayerPunishment = -0.05f;
+    public float DoesntAttackInstantlyPunishment = -0.1f;
+    public float AttackMissedPunishment = -0.1f;
+
     #endregion
 
     #region Massive Rewards
@@ -43,10 +44,9 @@ public class NormalEnemyRewards : MonoBehaviour
     #endregion
 
     #region Major Rewards
-    public void AddDetectionReward(Agent agent, float deltaTime)
+    public void AddDetectionReward(Agent agent)
     {
-        float reward = DetectPlayerReward * deltaTime;
-        agent.AddReward(reward);
+        agent.AddReward(DetectPlayerReward);
     }
 
     public void AddPatrolReward(Agent agent)
@@ -88,11 +88,6 @@ public class NormalEnemyRewards : MonoBehaviour
         agent.AddReward(ChaseStepReward);
     }
 
-    public void AddIdlePunishment(Agent agent, float deltaTime)
-    {
-        agent.AddReward(IdlePunishment);
-    }
-
     public void AddNoMovementPunishment(Agent agent, float deltaTime)
     {
         agent.AddReward(NoMovementPunishment);
@@ -103,24 +98,29 @@ public class NormalEnemyRewards : MonoBehaviour
         agent.AddReward(ApproachPlayerReward);
     }
 
-    public void AddStayFarFromPlayerPunishment(Agent agent, float deltaTime)
-    {
-        agent.AddReward(StayFarFromPlayerPunishment);
-    }
-
     public void AddDoesntChasePlayerPunishment(Agent agent, float deltaTime)
     {
         agent.AddReward(DoesntChasePlayerPunishment);
     }
 
-    public void AddFleeReward(NormalEnemyAgent agent, float deltaTime)
+    public void AddPatrolWrongStepPunishment(Agent agent)
     {
-        agent.AddReward(FleeReward); 
+        agent.AddReward(PatrolWrongStepPunishment);
     }
 
-    public void AddFleeingPunishment(NormalEnemyAgent agent, float deltaTime)
+    public void AddFailApproachPlayerPunishment(Agent agent)
     {
-        agent.AddReward(FleePunishment); 
+        agent.AddReward(FailApproachPlayerPunishment);
+    }
+
+    public void AddDoesntAttackInstantlyPunishment(Agent agent)
+    {
+        agent.AddReward(DoesntAttackInstantlyPunishment);
+    }
+
+    public void AddAttackMissedPunishment(Agent agent)
+    {
+        agent.AddReward(AttackMissedPunishment);
     }
 
     #endregion

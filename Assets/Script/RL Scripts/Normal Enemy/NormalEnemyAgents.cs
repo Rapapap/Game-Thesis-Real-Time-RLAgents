@@ -45,8 +45,9 @@ public class NormalEnemyAgent : Agent
     private const float STUCK_THRESHOLD = 0.1f;
     private const float STUCK_TIME_LIMIT = 2f;
     private const float OBSTACLE_DETECTION_DISTANCE = 2f;
-    private const float ROTATION_ALIGNMENT_THRESHOLD = 0.9f;
-    
+    private const float ROTATION_ANGLE_THRESHOLD_DEG = 50f;
+    private const float ROTATION_OBSTACLE_DISTANCE = 0.7f;
+
     private Vector3 initialPosition;
     private string currentState = "Idle";
     private string currentAction = "Idle";
@@ -55,6 +56,7 @@ public class NormalEnemyAgent : Agent
     private bool isInitialized = false;
     private Vector3 lastPosition;
     private float stuckTimer = 0f;
+    private bool wasPlayerVisible = false;
     #endregion
 
     #region Agent Lifecycle
@@ -396,8 +398,10 @@ public class NormalEnemyAgent : Agent
             Vector3 fleeDirection = (transform.position - playerDetection.GetPlayerPosition()).normalized;
             Vector3 localFleeDir = transform.InverseTransformDirection(fleeDirection);
             
-            // Check if we need to rotate due to obstacles
-            bool shouldRotate = obstacleDetection.IsObstacleAhead() || !IsAlignedWithTarget(fleeDirection);
+            // Rotate only if obstacle is very close OR misalignment angle exceeds threshold
+            bool obstacleVeryClose = obstacleDetection.IsObstacleWithin(ROTATION_OBSTACLE_DISTANCE);
+            bool misaligned = !IsAlignedWithTarget(fleeDirection);
+            bool shouldRotate = obstacleVeryClose || misaligned;
             
             float fleeForward = Mathf.Max(forward, localFleeDir.z * 1.2f);
             float fleeRight = right + localFleeDir.x * 0.8f;
@@ -425,7 +429,9 @@ public class NormalEnemyAgent : Agent
         else
         {
             // Moving towards player - check if rotation is needed
-            bool needsRotation = obstacleDetection.IsObstacleAhead() || !IsAlignedWithTarget(directionToPlayer);
+            bool obstacleVeryClose = obstacleDetection.IsObstacleWithin(ROTATION_OBSTACLE_DISTANCE);
+            bool misaligned = !IsAlignedWithTarget(directionToPlayer);
+            bool needsRotation = obstacleVeryClose || misaligned;
             Vector3 localDirection = transform.InverseTransformDirection(directionToPlayer);
             
             float chaseForward = Mathf.Max(forward, localDirection.z * 0.8f);
@@ -433,7 +439,7 @@ public class NormalEnemyAgent : Agent
             float rotationInput = needsRotation ? rotation : 0f;
             
             movementController.ProcessMovement(chaseForward, chaseRight, rotationInput);
-            rewardConfig.AddApproachPlayerReward(this, Time.deltaTime);
+            rewardConfig.AddChasePlayerReward(this);
         }
     }
 
@@ -458,17 +464,18 @@ public class NormalEnemyAgent : Agent
             }
             else
             {
-                // Navigate to patrol point - only rotate if needed
+                // Navigate to patrol point - only rotate if needed (misaligned AND/or obstacle very close)
                 Vector3 directionToTarget = (currentTarget - transform.position).normalized;
-                bool needsRotation = obstacleDetection.IsObstacleAhead() || !IsAlignedWithTarget(directionToTarget);
+                bool obstacleVeryClose = obstacleDetection.IsObstacleWithin(ROTATION_OBSTACLE_DISTANCE);
+                bool misaligned = !IsAlignedWithTarget(directionToTarget);
+                bool needsRotation = obstacleVeryClose || misaligned;
                 Vector3 localDirection = transform.InverseTransformDirection(directionToTarget);
                 
-                float patrolForward = Mathf.Max(forward, localDirection.z * 0.7f);
+                float patrolForward = Mathf.Max(forward, localDirection.z * 0.5f);
                 float patrolRight = right + localDirection.x * 0.3f;
                 float rotationInput = needsRotation ? rotation : 0f;
                 
                 movementController.ProcessMovement(patrolForward, patrolRight, rotationInput);
-                rewardConfig.AddPatrolStepReward(this, Time.deltaTime);
             }
 
             if (patrolSystem.IsIdlingAtSpawn())
@@ -478,19 +485,24 @@ public class NormalEnemyAgent : Agent
         }
         else
         {
-            // No patrol points - minimal rotation unless obstacle detected
-            bool needsRotation = obstacleDetection.IsObstacleAhead();
+            // No patrol points - minimal rotation unless obstacle detected (very close)
+            bool needsRotation = obstacleDetection.IsObstacleWithin(ROTATION_OBSTACLE_DISTANCE);
             float rotationInput = needsRotation ? rotation : 0f;
             
             movementController.ProcessMovement(forward, right, rotationInput);
             currentAction = "Exploring";
+            
+            // Apply punishment for wrong patrol steps
+            rewardConfig.AddPatrolWrongStepPunishment(this);
         }
     }
 
+    // NEW: angle-based alignment test (clear and explicit)
     private bool IsAlignedWithTarget(Vector3 targetDirection)
     {
-        float dot = Vector3.Dot(transform.forward, targetDirection.normalized);
-        return dot > ROTATION_ALIGNMENT_THRESHOLD;
+        // compute signed angle on horizontal plane
+        float angle = Mathf.Abs(Vector3.SignedAngle(transform.forward, targetDirection.normalized, Vector3.up));
+        return angle <= ROTATION_ANGLE_THRESHOLD_DEG;
     }
 
     private void ExecuteAttack()
@@ -510,6 +522,11 @@ public class NormalEnemyAgent : Agent
         if (shouldAttack && canAttack)
         {
             ExecuteAttack();
+        }
+        else if (canAttack && !shouldAttack)
+        {
+            // Punish for not attacking when possible
+            rewardConfig.AddDoesntAttackInstantlyPunishment(this);
         }
         else if (shouldAttackAnim && !animator.GetCurrentAnimatorStateInfo(0).IsName("Attack"))
         {
@@ -556,6 +573,13 @@ public class NormalEnemyAgent : Agent
     private void UpdateBehaviorAndRewards()
     {
         playerDetection.UpdatePlayerDetection(transform.position);
+        // Add detection reward when player first becomes visible
+        if (playerDetection.IsPlayerVisible && !wasPlayerVisible)
+        {
+            rewardConfig.AddDetectionReward(this);
+        }
+        wasPlayerVisible = playerDetection.IsPlayerVisible;
+
         obstacleDetection.UpdateObstacleDetection();
         ProcessRewards(Time.deltaTime);
         debugDisplay.UpdateCumulativeReward(GetCumulativeReward());
@@ -563,15 +587,6 @@ public class NormalEnemyAgent : Agent
 
     private void ProcessRewards(float deltaTime)
     {
-        if (IsAgentFleeing())
-        {
-            if (ShouldAgentFlee())
-                rewardConfig.AddFleeReward(this, deltaTime);
-            else
-                rewardConfig.AddFleeingPunishment(this, deltaTime);
-            return;
-        }
-
         if (currentAction == "Chasing")
         {
             rewardConfig.AddChaseStepReward(this, deltaTime);
@@ -585,7 +600,7 @@ public class NormalEnemyAgent : Agent
         {
             if (!patrolSystem.IsIdlingAtSpawn() && agentRigidbody.linearVelocity.magnitude < 0.1f)
             {
-                rewardConfig.AddIdlePunishment(this, deltaTime);
+                rewardConfig.AddNoMovementPunishment(this, deltaTime);
             }
         }
 
@@ -598,7 +613,13 @@ public class NormalEnemyAgent : Agent
         {
             float currentDistance = playerDetection.GetDistanceToPlayer(transform.position);
             if (currentDistance < previousDistanceToPlayer)
+            {
                 rewardConfig.AddApproachPlayerReward(this, deltaTime);
+            }
+            else
+            {
+                rewardConfig.AddFailApproachPlayerPunishment(this);
+            }
             previousDistanceToPlayer = currentDistance;
         }
     }
@@ -626,6 +647,11 @@ public class NormalEnemyAgent : Agent
         rewardConfig.AddDamagePunishment(this);
         currentState = "Taking Damage";
         currentAction = "Reacting";
+    }
+    
+    public void HandleAttackMissed()
+    {
+        rewardConfig.AddAttackMissedPunishment(this);
     }
 
     public void HandleKillPlayer()
@@ -711,13 +737,30 @@ public class RLMovementController
             agentRigidbody.linearVelocity = velocity;
         }
         
-        // Apply rotation only when explicitly requested
-        if (Mathf.Abs(rotation) > 0.1f)
+        // Rotation handling: convert continuous rotation input into controlled angular velocity,
+        // and actively damp angular velocity when there's no rotation input to avoid drift.
+        if (Mathf.Abs(rotation) > rotationInputDeadzone)
         {
-            float torque = rotation * rotationSpeed;
-            agentRigidbody.AddTorque(0, torque, 0, ForceMode.Acceleration);
+            // Desired angular speed in radians/sec around Y
+            float desiredDegPerSec = rotation * rotationSpeed;
+            float desiredRadPerSec = desiredDegPerSec * Mathf.Deg2Rad;
+
+            // Smooth toward desired angular velocity
+            float currentY = agentRigidbody.angularVelocity.y;
+            float smoothedY = Mathf.Lerp(currentY, desiredRadPerSec, 0.25f); // smoothing factor tuned
+            agentRigidbody.angularVelocity = new Vector3(0f, smoothedY, 0f);
+        }
+        else
+        {
+            // Damp angular velocity toward zero to stop scanning / drift
+            Vector3 currentAngVel = agentRigidbody.angularVelocity;
+            Vector3 damped = Vector3.Lerp(currentAngVel, Vector3.zero, 0.4f);
+            agentRigidbody.angularVelocity = new Vector3(0f, damped.y, 0f);
         }
     }
+
+    // small const for readability inside this helper
+    private const float rotationInputDeadzone = 0.1f;
 
     public void FaceTarget(Vector3 targetPosition)
     {
@@ -742,6 +785,7 @@ public class ObstacleDetection
     private readonly LayerMask obstacleLayerMask;
     private readonly float detectionDistance;
     private bool isObstacleAhead;
+    private float lastHitDistance = Mathf.Infinity;
 
     public ObstacleDetection(Transform transform, LayerMask obstacleMask, float distance)
     {
@@ -755,13 +799,29 @@ public class ObstacleDetection
         Vector3 rayStart = agentTransform.position + Vector3.up * 0.5f;
         Vector3 rayDirection = agentTransform.forward;
         
-        isObstacleAhead = Physics.Raycast(rayStart, rayDirection, detectionDistance, obstacleLayerMask);
+        RaycastHit hit;
+        if (Physics.Raycast(rayStart, rayDirection, out hit, detectionDistance, obstacleLayerMask))
+        {
+            isObstacleAhead = true;
+            lastHitDistance = hit.distance;
+        }
+        else
+        {
+            isObstacleAhead = false;
+            lastHitDistance = Mathf.Infinity;
+        }
         
         // Debug visualization
         Debug.DrawRay(rayStart, rayDirection * detectionDistance, isObstacleAhead ? Color.red : Color.green);
     }
 
     public bool IsObstacleAhead() => isObstacleAhead;
+
+    // NEW: check if the detected obstacle is within a smaller threshold
+    public bool IsObstacleWithin(float distance)
+    {
+        return isObstacleAhead && lastHitDistance <= distance;
+    }
 }
 
 public class DebugDisplay

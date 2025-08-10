@@ -586,14 +586,14 @@ MonoBehaviour:
   HitByPlayerPunishment: -0.7
   ObstaclePunishment: -0.9
   PatrolStepReward: 0.005
-  ChaseStepReward: 0.01
-  IdlePunishment: -0.01
+  PatrolWrongStepPunishment: -0.01
   NoMovementPunishment: -0.01
   ApproachPlayerReward: 0.01
-  StayFarFromPlayerPunishment: -0.005
+  ChaseStepReward: 0.01
   DoesntChasePlayerPunishment: -0.05
-  FleeReward: 0.05
-  FleePunishment: -0.03
+  FailApproachPlayerPunishment: -0.05
+  DoesntAttackInstantlyPunishment: -0.1
+  AttackMissedPunishment: -0.1
 --- !u!1 &7554904805282469337
 GameObject:
   m_ObjectHideFlags: 0
