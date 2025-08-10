@@ -38,11 +38,14 @@ public class NormalEnemyAgent : Agent
     private PatrolSystem patrolSystem;
     private RLMovementController movementController;
     private DebugDisplay debugDisplay;
+    private ObstacleDetection obstacleDetection;
     
     private const float DISTANCE_NORMALIZATION_FACTOR = 50f;
     private const float VELOCITY_NORMALIZATION_FACTOR = 10f;
     private const float STUCK_THRESHOLD = 0.1f;
     private const float STUCK_TIME_LIMIT = 2f;
+    private const float OBSTACLE_DETECTION_DISTANCE = 2f;
+    private const float ROTATION_ALIGNMENT_THRESHOLD = 0.9f;
     
     private Vector3 initialPosition;
     private string currentState = "Idle";
@@ -145,10 +148,11 @@ public class NormalEnemyAgent : Agent
         sensor.AddObservation(localVelocity.x / VELOCITY_NORMALIZATION_FACTOR);
         sensor.AddObservation(localVelocity.z / VELOCITY_NORMALIZATION_FACTOR);
         
-        // State observations (3)
+        // State observations (4) - Added obstacle detection
         sensor.AddObservation(IsAgentKnockedBack() ? 1f : 0f);
         sensor.AddObservation(IsAgentFleeing() ? 1f : 0f);
         sensor.AddObservation(ShouldAgentFlee() ? 1f : 0f);
+        sensor.AddObservation(obstacleDetection.IsObstacleAhead() ? 1f : 0f);
         
         // Patrol-related observations (3)
         if (patrolSystem.HasValidPatrolPoints())
@@ -197,6 +201,7 @@ public class NormalEnemyAgent : Agent
     {
         var raySensor = GetComponent<RayPerceptionSensorComponent3D>();
         playerDetection = new PlayerDetection(raySensor, LayerMask.GetMask("Wall", "Environment", "Enemy"));
+        obstacleDetection = new ObstacleDetection(transform, LayerMask.GetMask("Wall", "Obstacle", "Environment", "Gate"), OBSTACLE_DETECTION_DISTANCE);
     }
 
     private void InitializeSystems()
@@ -378,7 +383,7 @@ public class NormalEnemyAgent : Agent
     {
         currentState = "Knocked Back";
         currentAction = "Recovering";
-        // Physics handles knockback
+        // Physics handles knockback - no manual rotation
     }
 
     private void HandleFleeingState(float forward, float right, float rotation)
@@ -391,11 +396,14 @@ public class NormalEnemyAgent : Agent
             Vector3 fleeDirection = (transform.position - playerDetection.GetPlayerPosition()).normalized;
             Vector3 localFleeDir = transform.InverseTransformDirection(fleeDirection);
             
-            // Blend RL actions with flee direction
+            // Check if we need to rotate due to obstacles
+            bool shouldRotate = obstacleDetection.IsObstacleAhead() || !IsAlignedWithTarget(fleeDirection);
+            
             float fleeForward = Mathf.Max(forward, localFleeDir.z * 1.2f);
             float fleeRight = right + localFleeDir.x * 0.8f;
+            float fleeRotation = shouldRotate ? rotation : 0f;
             
-            movementController.ProcessMovement(fleeForward, fleeRight, rotation);
+            movementController.ProcessMovement(fleeForward, fleeRight, fleeRotation);
         }
     }
 
@@ -404,28 +412,25 @@ public class NormalEnemyAgent : Agent
         currentState = "Chasing";
         currentAction = "Chasing";
 
-        // Face the player
         Vector3 playerPos = playerDetection.GetPlayerPosition();
-        movementController.FaceTarget(playerPos);
-
-        // Check if player is in attack range
+        Vector3 directionToPlayer = (playerPos - transform.position).normalized;
         bool playerInRange = IsPlayerInAttackRange();
         
         if (playerInRange)
         {
+            // In attack range - face player and attack
             movementController.FaceTarget(playerPos);
             ProcessAttackAction(shouldAttack);
         }
         else
         {
-            // Move towards player using RL actions
-            Vector3 directionToPlayer = (playerPos - transform.position).normalized;
+            // Moving towards player - check if rotation is needed
+            bool needsRotation = obstacleDetection.IsObstacleAhead() || !IsAlignedWithTarget(directionToPlayer);
             Vector3 localDirection = transform.InverseTransformDirection(directionToPlayer);
             
-            // Blend RL actions with chase behavior
             float chaseForward = Mathf.Max(forward, localDirection.z * 0.8f);
             float chaseRight = right + localDirection.x * 0.3f;
-            float rotationInput = playerInRange || rl_EnemyController.combatState.IsAttacking ? 0f : rotation;
+            float rotationInput = needsRotation ? rotation : 0f;
             
             movementController.ProcessMovement(chaseForward, chaseRight, rotationInput);
             rewardConfig.AddApproachPlayerReward(this, Time.deltaTime);
@@ -453,15 +458,16 @@ public class NormalEnemyAgent : Agent
             }
             else
             {
-                // Navigate to patrol point with RL guidance
+                // Navigate to patrol point - only rotate if needed
                 Vector3 directionToTarget = (currentTarget - transform.position).normalized;
+                bool needsRotation = obstacleDetection.IsObstacleAhead() || !IsAlignedWithTarget(directionToTarget);
                 Vector3 localDirection = transform.InverseTransformDirection(directionToTarget);
                 
-                // Blend RL actions with patrol direction
                 float patrolForward = Mathf.Max(forward, localDirection.z * 0.7f);
                 float patrolRight = right + localDirection.x * 0.3f;
+                float rotationInput = needsRotation ? rotation : 0f;
                 
-                movementController.ProcessMovement(patrolForward, patrolRight, rotation);
+                movementController.ProcessMovement(patrolForward, patrolRight, rotationInput);
                 rewardConfig.AddPatrolStepReward(this, Time.deltaTime);
             }
 
@@ -472,9 +478,19 @@ public class NormalEnemyAgent : Agent
         }
         else
         {
-            movementController.ProcessMovement(forward, right, rotation);
+            // No patrol points - minimal rotation unless obstacle detected
+            bool needsRotation = obstacleDetection.IsObstacleAhead();
+            float rotationInput = needsRotation ? rotation : 0f;
+            
+            movementController.ProcessMovement(forward, right, rotationInput);
             currentAction = "Exploring";
         }
+    }
+
+    private bool IsAlignedWithTarget(Vector3 targetDirection)
+    {
+        float dot = Vector3.Dot(transform.forward, targetDirection.normalized);
+        return dot > ROTATION_ALIGNMENT_THRESHOLD;
     }
 
     private void ExecuteAttack()
@@ -540,6 +556,7 @@ public class NormalEnemyAgent : Agent
     private void UpdateBehaviorAndRewards()
     {
         playerDetection.UpdatePlayerDetection(transform.position);
+        obstacleDetection.UpdateObstacleDetection();
         ProcessRewards(Time.deltaTime);
         debugDisplay.UpdateCumulativeReward(GetCumulativeReward());
     }
@@ -662,9 +679,9 @@ public class RLMovementController
     {
         agentRigidbody = rigidbody;
         agentTransform = transform;
-        this.moveSpeed = moveSpeed;
+        this.moveSpeed = moveSpeed * 5f;
         this.rotationSpeed = rotationSpeed;
-        maxVelocity = moveSpeed;
+        maxVelocity = 10f; 
     }
 
     public void Reset()
@@ -694,7 +711,7 @@ public class RLMovementController
             agentRigidbody.linearVelocity = velocity;
         }
         
-        // Apply rotation
+        // Apply rotation only when explicitly requested
         if (Mathf.Abs(rotation) > 0.1f)
         {
             float torque = rotation * rotationSpeed;
@@ -717,6 +734,34 @@ public class RLMovementController
             );
         }
     }
+}
+
+public class ObstacleDetection
+{
+    private readonly Transform agentTransform;
+    private readonly LayerMask obstacleLayerMask;
+    private readonly float detectionDistance;
+    private bool isObstacleAhead;
+
+    public ObstacleDetection(Transform transform, LayerMask obstacleMask, float distance)
+    {
+        agentTransform = transform;
+        obstacleLayerMask = obstacleMask;
+        detectionDistance = distance;
+    }
+
+    public void UpdateObstacleDetection()
+    {
+        Vector3 rayStart = agentTransform.position + Vector3.up * 0.5f;
+        Vector3 rayDirection = agentTransform.forward;
+        
+        isObstacleAhead = Physics.Raycast(rayStart, rayDirection, detectionDistance, obstacleLayerMask);
+        
+        // Debug visualization
+        Debug.DrawRay(rayStart, rayDirection * detectionDistance, isObstacleAhead ? Color.red : Color.green);
+    }
+
+    public bool IsObstacleAhead() => isObstacleAhead;
 }
 
 public class DebugDisplay

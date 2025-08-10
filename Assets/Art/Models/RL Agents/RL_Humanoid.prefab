@@ -1305,9 +1305,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   fleeHealthThreshold: 0.2
-  fleeDistance: 4
+  fleeDistance: 3
   fleeDetectionRadius: 10
-  fleeDuration: 3
+  fleeDuration: 2
   healthBar: {fileID: 8359980924510194894}
   attackCollider: {fileID: 7083142781546743490}
   waypoints: []
@@ -1472,7 +1472,7 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 759686e9799d7e1498c30a9d2591efdc, type: 3}
   m_InferenceDevice: 0
   m_BehaviorType: 0
   m_BehaviorName: NormalEnemy
@@ -1502,7 +1502,7 @@ MonoBehaviour:
   animator: {fileID: 2030732665317957927}
   agentRigidbody: {fileID: 8622400069896116343}
   moveSpeed: 7
-  rotationSpeed: 120
+  rotationSpeed: 180
   showDebugInfo: 1
   debugTextOffset: {x: 10, y: 120}
   debugTextColor: {r: 1, g: 0.46947142, b: 0.050943315, a: 1}
