@@ -36,17 +36,18 @@ public class NormalEnemyAgent : Agent
     #region Private Variables
     private PlayerDetection playerDetection;
     private PatrolSystem patrolSystem;
-    private RLMovementController movementController;
+    private EnhancedMovementController movementController;
     private DebugDisplay debugDisplay;
-    private ObstacleDetection obstacleDetection;
+    private EnhancedObstacleDetection obstacleDetection;
     
     private const float DISTANCE_NORMALIZATION_FACTOR = 50f;
     private const float VELOCITY_NORMALIZATION_FACTOR = 10f;
-    private const float STUCK_THRESHOLD = 0.1f;
+    private const float STUCK_THRESHOLD = 0.5f;
     private const float STUCK_TIME_LIMIT = 2f;
     private const float OBSTACLE_DETECTION_DISTANCE = 2f;
-    private const float ROTATION_ANGLE_THRESHOLD_DEG = 50f;
-    private const float ROTATION_OBSTACLE_DISTANCE = 0.7f;
+    private const float CHASE_MOVEMENT_THRESHOLD = 0.05f; 
+    private const float CHASE_REWARD_INTERVAL = 0.5f;
+    private const float OBSTACLE_AVOIDANCE_STRENGTH = 2.5f;
 
     private Vector3 initialPosition;
     private string currentState = "Idle";
@@ -57,6 +58,9 @@ public class NormalEnemyAgent : Agent
     private Vector3 lastPosition;
     private float stuckTimer = 0f;
     private bool wasPlayerVisible = false;
+    private Vector3 lastPositionForChaseReward;
+    private float chaseMovementAccumulator = 0f;
+    private bool isCurrentlyChasing = false;
     #endregion
 
     #region Agent Lifecycle
@@ -64,7 +68,7 @@ public class NormalEnemyAgent : Agent
     {
         rl_EnemyController ??= GetComponent<RL_EnemyController>();
         agentRigidbody ??= GetComponent<Rigidbody>();
-        
+
         if (rl_EnemyController == null || agentRigidbody == null)
         {
             Debug.LogError("NormalEnemyAgent: Missing required components!", gameObject);
@@ -81,9 +85,10 @@ public class NormalEnemyAgent : Agent
         InitializeSystems();
         ConfigureRigidbody();
         DisableConflictingComponents();
-        
+
         initialPosition = transform.position;
         lastPosition = transform.position;
+        lastPositionForChaseReward = transform.position;
         ResetAgentState();
         rl_EnemyController.InitializeHealthBar();
         isInitialized = true;
@@ -150,11 +155,17 @@ public class NormalEnemyAgent : Agent
         sensor.AddObservation(localVelocity.x / VELOCITY_NORMALIZATION_FACTOR);
         sensor.AddObservation(localVelocity.z / VELOCITY_NORMALIZATION_FACTOR);
         
-        // State observations (4) - Added obstacle detection
+        // Enhanced obstacle observations (4 directions) (4)
+        var obstacleInfo = obstacleDetection.GetObstacleDistances();
+        sensor.AddObservation(obstacleInfo.forward / OBSTACLE_DETECTION_DISTANCE);
+        sensor.AddObservation(obstacleInfo.right / OBSTACLE_DETECTION_DISTANCE);
+        sensor.AddObservation(obstacleInfo.left / OBSTACLE_DETECTION_DISTANCE);
+        sensor.AddObservation(obstacleInfo.back / OBSTACLE_DETECTION_DISTANCE);
+        
+        // State observations (3)
         sensor.AddObservation(IsAgentKnockedBack() ? 1f : 0f);
         sensor.AddObservation(IsAgentFleeing() ? 1f : 0f);
         sensor.AddObservation(ShouldAgentFlee() ? 1f : 0f);
-        sensor.AddObservation(obstacleDetection.IsObstacleAhead() ? 1f : 0f);
         
         // Patrol-related observations (3)
         if (patrolSystem.HasValidPatrolPoints())
@@ -203,14 +214,14 @@ public class NormalEnemyAgent : Agent
     {
         var raySensor = GetComponent<RayPerceptionSensorComponent3D>();
         playerDetection = new PlayerDetection(raySensor, LayerMask.GetMask("Wall", "Environment", "Enemy"));
-        obstacleDetection = new ObstacleDetection(transform, LayerMask.GetMask("Wall", "Obstacle", "Environment", "Gate"), OBSTACLE_DETECTION_DISTANCE);
+        obstacleDetection = new EnhancedObstacleDetection(transform, LayerMask.GetMask("Wall", "Obstacle", "Environment", "Gate"), OBSTACLE_DETECTION_DISTANCE);
     }
 
     private void InitializeSystems()
     {
         Transform[] patrolPoints = FindPatrolPoints();
         patrolSystem = new PatrolSystem(patrolPoints);
-        movementController = new RLMovementController(agentRigidbody, transform, moveSpeed, rotationSpeed);
+        movementController = new EnhancedMovementController(agentRigidbody, transform, moveSpeed, rotationSpeed);
         debugDisplay = new DebugDisplay();
         
         if (patrolPoints.Length > 0)
@@ -228,8 +239,8 @@ public class NormalEnemyAgent : Agent
         if (agentRigidbody == null) return;
 
         agentRigidbody.mass = 1f;
-        agentRigidbody.linearDamping = 2f;
-        agentRigidbody.angularDamping = 5f;
+        agentRigidbody.linearDamping = 1f;  // Reduced for better responsiveness
+        agentRigidbody.angularDamping = 3f; // Reduced for better turning
         agentRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
         agentRigidbody.collisionDetectionMode = CollisionDetectionMode.Continuous;
         agentRigidbody.constraints = RigidbodyConstraints.FreezeRotationX | 
@@ -239,12 +250,21 @@ public class NormalEnemyAgent : Agent
 
     private void DisableConflictingComponents()
     {
-        var otherMovement = GetComponent<MonoBehaviour>();
-        if (otherMovement != null && otherMovement != this && otherMovement.GetType().Name.Contains("Movement"))
+        var components = GetComponents<MonoBehaviour>();
+        foreach (var component in components)
         {
-            otherMovement.enabled = false;
+            if (component != this && 
+                (component.GetType().Name.Contains("Movement") || 
+                 component.GetType().Name.Contains("Controller")) &&
+                !component.GetType().Name.Contains("RL_Enemy"))
+            {
+                component.enabled = false;
+                Debug.Log($"Disabled conflicting component: {component.GetType().Name}");
+            }
         }
     }
+
+    // ... [Other initialization methods remain the same] ...
 
     private Transform[] FindPatrolPoints()
     {
@@ -287,6 +307,11 @@ public class NormalEnemyAgent : Agent
         stuckTimer = 0f;
         lastPosition = transform.position;
 
+        lastPositionForChaseReward = transform.position;
+        chaseMovementAccumulator = 0f;
+        isCurrentlyChasing = false;
+        previousDistanceToPlayer = float.MaxValue;
+
         patrolSystem?.Reset();
         movementController?.Reset();
         gameObject.SetActive(true);
@@ -328,6 +353,7 @@ public class NormalEnemyAgent : Agent
         
         patrolSystem.ResetToSpecificPoint(randomIndex);
         lastPosition = respawnPosition;
+        lastPositionForChaseReward = respawnPosition;
     }
 
     private void ResetTrainingArena()
@@ -360,6 +386,17 @@ public class NormalEnemyAgent : Agent
         float rotation = Mathf.Clamp(actions.ContinuousActions[2], -1f, 1f);
         bool shouldAttack = actions.DiscreteActions[0] == 1;
 
+        // Get obstacle avoidance adjustments
+        Vector2 obstacleAvoidance = obstacleDetection.GetAvoidanceDirection();
+        
+        // Apply obstacle avoidance to movement
+        forward += obstacleAvoidance.y * OBSTACLE_AVOIDANCE_STRENGTH;
+        right += obstacleAvoidance.x * OBSTACLE_AVOIDANCE_STRENGTH;
+        
+        // Clamp after obstacle avoidance
+        forward = Mathf.Clamp(forward, -1f, 1f);
+        right = Mathf.Clamp(right, -1f, 1f);
+
         // Handle different behavioral states
         if (IsAgentKnockedBack())
         {
@@ -385,29 +422,24 @@ public class NormalEnemyAgent : Agent
     {
         currentState = "Knocked Back";
         currentAction = "Recovering";
-        // Physics handles knockback - no manual rotation
+        isCurrentlyChasing = false;
     }
 
     private void HandleFleeingState(float forward, float right, float rotation)
     {
         currentState = "Fleeing";
         currentAction = "Fleeing";
+        isCurrentlyChasing = false;
         
         if (playerDetection.IsPlayerAvailable())
         {
             Vector3 fleeDirection = (transform.position - playerDetection.GetPlayerPosition()).normalized;
             Vector3 localFleeDir = transform.InverseTransformDirection(fleeDirection);
             
-            // Rotate only if obstacle is very close OR misalignment angle exceeds threshold
-            bool obstacleVeryClose = obstacleDetection.IsObstacleWithin(ROTATION_OBSTACLE_DISTANCE);
-            bool misaligned = !IsAlignedWithTarget(fleeDirection);
-            bool shouldRotate = obstacleVeryClose || misaligned;
-            
             float fleeForward = Mathf.Max(forward, localFleeDir.z * 1.2f);
             float fleeRight = right + localFleeDir.x * 0.8f;
-            float fleeRotation = shouldRotate ? rotation : 0f;
             
-            movementController.ProcessMovement(fleeForward, fleeRight, fleeRotation);
+            movementController.ProcessMovement(fleeForward, fleeRight, rotation);
         }
     }
 
@@ -417,29 +449,28 @@ public class NormalEnemyAgent : Agent
         currentAction = "Chasing";
 
         Vector3 playerPos = playerDetection.GetPlayerPosition();
-        Vector3 directionToPlayer = (playerPos - transform.position).normalized;
         bool playerInRange = IsPlayerInAttackRange();
         
+        if (!isCurrentlyChasing)
+        {
+            rewardConfig.AddChasePlayerReward(this);
+            isCurrentlyChasing = true;
+        }
+
         if (playerInRange)
         {
-            // In attack range - face player and attack
             movementController.FaceTarget(playerPos);
             ProcessAttackAction(shouldAttack);
         }
         else
         {
-            // Moving towards player - check if rotation is needed
-            bool obstacleVeryClose = obstacleDetection.IsObstacleWithin(ROTATION_OBSTACLE_DISTANCE);
-            bool misaligned = !IsAlignedWithTarget(directionToPlayer);
-            bool needsRotation = obstacleVeryClose || misaligned;
+            Vector3 directionToPlayer = (playerPos - transform.position).normalized;
             Vector3 localDirection = transform.InverseTransformDirection(directionToPlayer);
             
             float chaseForward = Mathf.Max(forward, localDirection.z * 0.8f);
             float chaseRight = right + localDirection.x * 0.3f;
-            float rotationInput = needsRotation ? rotation : 0f;
             
-            movementController.ProcessMovement(chaseForward, chaseRight, rotationInput);
-            rewardConfig.AddChasePlayerReward(this);
+            movementController.ProcessMovement(chaseForward, chaseRight, rotation);
         }
     }
 
@@ -447,6 +478,7 @@ public class NormalEnemyAgent : Agent
     {
         currentState = "Patrolling";
         currentAction = "Patrolling";
+        isCurrentlyChasing = false;
 
         if (patrolSystem.HasValidPatrolPoints())
         {
@@ -464,18 +496,13 @@ public class NormalEnemyAgent : Agent
             }
             else
             {
-                // Navigate to patrol point - only rotate if needed (misaligned AND/or obstacle very close)
                 Vector3 directionToTarget = (currentTarget - transform.position).normalized;
-                bool obstacleVeryClose = obstacleDetection.IsObstacleWithin(ROTATION_OBSTACLE_DISTANCE);
-                bool misaligned = !IsAlignedWithTarget(directionToTarget);
-                bool needsRotation = obstacleVeryClose || misaligned;
                 Vector3 localDirection = transform.InverseTransformDirection(directionToTarget);
                 
-                float patrolForward = Mathf.Max(forward, localDirection.z * 0.5f);
-                float patrolRight = right + localDirection.x * 0.3f;
-                float rotationInput = needsRotation ? rotation : 0f;
+                float patrolForward = Mathf.Max(forward, localDirection.z * 0.6f);
+                float patrolRight = right + localDirection.x * 0.4f;
                 
-                movementController.ProcessMovement(patrolForward, patrolRight, rotationInput);
+                movementController.ProcessMovement(patrolForward, patrolRight, rotation);
             }
 
             if (patrolSystem.IsIdlingAtSpawn())
@@ -485,24 +512,10 @@ public class NormalEnemyAgent : Agent
         }
         else
         {
-            // No patrol points - minimal rotation unless obstacle detected (very close)
-            bool needsRotation = obstacleDetection.IsObstacleWithin(ROTATION_OBSTACLE_DISTANCE);
-            float rotationInput = needsRotation ? rotation : 0f;
-            
-            movementController.ProcessMovement(forward, right, rotationInput);
+            movementController.ProcessMovement(forward, right, rotation);
             currentAction = "Exploring";
-            
-            // Apply punishment for wrong patrol steps
             rewardConfig.AddPatrolWrongStepPunishment(this);
         }
-    }
-
-    // NEW: angle-based alignment test (clear and explicit)
-    private bool IsAlignedWithTarget(Vector3 targetDirection)
-    {
-        // compute signed angle on horizontal plane
-        float angle = Mathf.Abs(Vector3.SignedAngle(transform.forward, targetDirection.normalized, Vector3.up));
-        return angle <= ROTATION_ANGLE_THRESHOLD_DEG;
     }
 
     private void ExecuteAttack()
@@ -516,7 +529,7 @@ public class NormalEnemyAgent : Agent
 
     private void ProcessAttackAction(bool shouldAttack)
     {
-        bool canAttack = Time.fixedTime - lastAttackTime >= 2f;
+        bool canAttack = Time.fixedTime - lastAttackTime >= 0.5f;
         bool shouldAttackAnim = canAttack && rl_EnemyController.combatState.IsAttacking;
 
         if (shouldAttack && canAttack)
@@ -525,7 +538,6 @@ public class NormalEnemyAgent : Agent
         }
         else if (canAttack && !shouldAttack)
         {
-            // Punish for not attacking when possible
             rewardConfig.AddDoesntAttackInstantlyPunishment(this);
         }
         else if (shouldAttackAnim && !animator.GetCurrentAnimatorStateInfo(0).IsName("Attack"))
@@ -566,14 +578,12 @@ public class NormalEnemyAgent : Agent
         
         lastPosition = transform.position;
     }
-    
     #endregion
 
     #region Reward & Behavior Updates
     private void UpdateBehaviorAndRewards()
     {
         playerDetection.UpdatePlayerDetection(transform.position);
-        // Add detection reward when player first becomes visible
         if (playerDetection.IsPlayerVisible && !wasPlayerVisible)
         {
             rewardConfig.AddDetectionReward(this);
@@ -589,8 +599,20 @@ public class NormalEnemyAgent : Agent
     {
         if (currentAction == "Chasing")
         {
-            rewardConfig.AddChaseStepReward(this, deltaTime);
-            ProcessChaseRewards(deltaTime);
+            float moved = Vector3.Distance(transform.position, lastPositionForChaseReward);
+
+            if (moved > CHASE_MOVEMENT_THRESHOLD)
+            {
+                chaseMovementAccumulator += deltaTime;
+
+                if (chaseMovementAccumulator >= CHASE_REWARD_INTERVAL)
+                {
+                    rewardConfig.AddChaseStepReward(this, chaseMovementAccumulator);
+                    ProcessChaseRewards(chaseMovementAccumulator);
+                    chaseMovementAccumulator = 0f;
+                    lastPositionForChaseReward = transform.position;
+                }
+            }
         }
         else if (currentAction == "Patrolling")
         {
@@ -604,17 +626,17 @@ public class NormalEnemyAgent : Agent
             }
         }
 
-        ProcessPlayerVisibilityRewards(deltaTime);
+        ProcessPlayerVisibilityRewards();
     }
     
-    private void ProcessChaseRewards(float deltaTime)
+    private void ProcessChaseRewards(float deltaTimeBucket)
     {
         if (playerDetection.IsPlayerAvailable())
         {
             float currentDistance = playerDetection.GetDistanceToPlayer(transform.position);
             if (currentDistance < previousDistanceToPlayer)
             {
-                rewardConfig.AddApproachPlayerReward(this, deltaTime);
+                rewardConfig.AddApproachPlayerReward(this, deltaTimeBucket);
             }
             else
             {
@@ -624,10 +646,10 @@ public class NormalEnemyAgent : Agent
         }
     }
 
-    private void ProcessPlayerVisibilityRewards(float deltaTime)
+    private void ProcessPlayerVisibilityRewards()
     {
         if (playerDetection.IsPlayerVisible && !currentAction.Contains("Chasing"))
-            rewardConfig.AddDoesntChasePlayerPunishment(this, deltaTime);
+            rewardConfig.AddDoesntChasePlayerPunishment(this, chaseMovementAccumulator);
     }
 
     public void HandleEnemyDeath()
@@ -635,6 +657,7 @@ public class NormalEnemyAgent : Agent
         rewardConfig.AddDeathPunishment(this);
         currentState = "Dead";
         currentAction = "Dead";
+        isCurrentlyChasing = false;
         
         agentRigidbody.linearVelocity = Vector3.zero;
         agentRigidbody.angularVelocity = Vector3.zero;
@@ -647,6 +670,7 @@ public class NormalEnemyAgent : Agent
         rewardConfig.AddDamagePunishment(this);
         currentState = "Taking Damage";
         currentAction = "Reacting";
+        isCurrentlyChasing = false;
     }
     
     public void HandleAttackMissed()
@@ -674,6 +698,7 @@ public class NormalEnemyAgent : Agent
     private bool IsPlayerInAttackRange() =>
         playerDetection.IsPlayerAvailable() &&
         Vector3.Distance(transform.position, playerDetection.GetPlayerPosition()) <= rl_EnemyController.attackRange;
+    
     public void SetPatrolPoints(Transform[] points) => patrolSystem?.SetPatrolPoints(points);
 
     void OnGUI()
@@ -686,14 +711,14 @@ public class NormalEnemyAgent : Agent
     {
         if (((1 << collision.gameObject.layer) & LayerMask.GetMask("Wall", "Obstacle", "Environment")) != 0)
         {
-            rewardConfig.AddObstaclePunishment(this);
+            rewardConfig.AddObstaclePunishment(this, Time.deltaTime);
         }
     }
     #endregion
 }
 
-#region Helper Classes
-public class RLMovementController
+#region Enhanced Helper Classes
+public class EnhancedMovementController
 {
     private readonly Rigidbody agentRigidbody;
     private readonly Transform agentTransform;
@@ -701,13 +726,13 @@ public class RLMovementController
     private readonly float rotationSpeed;
     private readonly float maxVelocity;
 
-    public RLMovementController(Rigidbody rigidbody, Transform transform, float moveSpeed, float rotationSpeed)
+    public EnhancedMovementController(Rigidbody rigidbody, Transform transform, float moveSpeed, float rotationSpeed)
     {
         agentRigidbody = rigidbody;
         agentTransform = transform;
-        this.moveSpeed = moveSpeed * 5f;
+        this.moveSpeed = moveSpeed; // Use actual moveSpeed value without multiplication
         this.rotationSpeed = rotationSpeed;
-        maxVelocity = 10f; 
+        maxVelocity = moveSpeed * 1.5f; // Dynamic max velocity based on move speed
     }
 
     public void Reset()
@@ -721,46 +746,49 @@ public class RLMovementController
 
     public void ProcessMovement(float forward, float right, float rotation)
     {
-        // Apply movement forces
-        Vector3 moveDirection = (agentTransform.forward * forward + agentTransform.right * right).normalized;
-        Vector3 force = moveDirection * moveSpeed * Mathf.Max(Mathf.Abs(forward), Mathf.Abs(right));
+        // Enhanced movement with proper force application
+        Vector3 moveDirection = (agentTransform.forward * forward + agentTransform.right * right);
+        float magnitude = Mathf.Clamp01(moveDirection.magnitude);
+        moveDirection = moveDirection.normalized;
         
-        agentRigidbody.AddForce(force, ForceMode.Acceleration);
+        // Apply movement force proportional to desired speed
+        Vector3 force = moveDirection * moveSpeed * magnitude * 100f; // Increased force multiplier
+        agentRigidbody.AddForce(force, ForceMode.Force);
         
-        // Limit velocity
+        // Limit horizontal velocity only
         Vector3 velocity = agentRigidbody.linearVelocity;
-        velocity.y = 0; // Keep Y velocity unchanged
-        if (velocity.magnitude > maxVelocity)
+        Vector3 horizontalVelocity = new Vector3(velocity.x, 0, velocity.z);
+        
+        if (horizontalVelocity.magnitude > maxVelocity)
         {
-            velocity = velocity.normalized * maxVelocity;
-            velocity.y = agentRigidbody.linearVelocity.y;
-            agentRigidbody.linearVelocity = velocity;
+            horizontalVelocity = horizontalVelocity.normalized * maxVelocity;
+            agentRigidbody.linearVelocity = new Vector3(horizontalVelocity.x, velocity.y, horizontalVelocity.z);
         }
         
-        // Rotation handling: convert continuous rotation input into controlled angular velocity,
-        // and actively damp angular velocity when there's no rotation input to avoid drift.
-        if (Mathf.Abs(rotation) > rotationInputDeadzone)
-        {
-            // Desired angular speed in radians/sec around Y
-            float desiredDegPerSec = rotation * rotationSpeed;
-            float desiredRadPerSec = desiredDegPerSec * Mathf.Deg2Rad;
+        // Enhanced rotation handling
+        HandleRotation(rotation);
+    }
 
-            // Smooth toward desired angular velocity
-            float currentY = agentRigidbody.angularVelocity.y;
-            float smoothedY = Mathf.Lerp(currentY, desiredRadPerSec, 0.25f); // smoothing factor tuned
-            agentRigidbody.angularVelocity = new Vector3(0f, smoothedY, 0f);
+    private void HandleRotation(float rotationInput)
+    {
+        const float rotationDeadzone = 0.05f;
+        const float dampingFactor = 0.3f;
+        
+        if (Mathf.Abs(rotationInput) > rotationDeadzone)
+        {
+            float targetAngularVelocity = rotationInput * rotationSpeed * Mathf.Deg2Rad;
+            float currentAngularVelocity = agentRigidbody.angularVelocity.y;
+            float smoothedAngularVelocity = Mathf.Lerp(currentAngularVelocity, targetAngularVelocity, dampingFactor);
+            agentRigidbody.angularVelocity = new Vector3(0f, smoothedAngularVelocity, 0f);
         }
         else
         {
-            // Damp angular velocity toward zero to stop scanning / drift
+            // Apply damping when no rotation input
             Vector3 currentAngVel = agentRigidbody.angularVelocity;
-            Vector3 damped = Vector3.Lerp(currentAngVel, Vector3.zero, 0.4f);
-            agentRigidbody.angularVelocity = new Vector3(0f, damped.y, 0f);
+            Vector3 dampedAngVel = Vector3.Lerp(currentAngVel, Vector3.zero, 0.5f);
+            agentRigidbody.angularVelocity = new Vector3(0f, dampedAngVel.y, 0f);
         }
     }
-
-    // small const for readability inside this helper
-    private const float rotationInputDeadzone = 0.1f;
 
     public void FaceTarget(Vector3 targetPosition)
     {
@@ -773,55 +801,127 @@ public class RLMovementController
             agentTransform.rotation = Quaternion.Slerp(
                 agentTransform.rotation,
                 targetRotation,
-                rotationSpeed * Time.fixedDeltaTime * 0.1f
+                rotationSpeed * Time.fixedDeltaTime * 0.02f
             );
         }
     }
 }
 
-public class ObstacleDetection
+[System.Serializable]
+public struct ObstacleDistances
+{
+    public float forward;
+    public float right;
+    public float left;
+    public float back;
+    
+    public ObstacleDistances(float forward, float right, float left, float back)
+    {
+        this.forward = forward;
+        this.right = right;
+        this.left = left;
+        this.back = back;
+    }
+}
+
+public class EnhancedObstacleDetection
 {
     private readonly Transform agentTransform;
     private readonly LayerMask obstacleLayerMask;
     private readonly float detectionDistance;
-    private bool isObstacleAhead;
-    private float lastHitDistance = Mathf.Infinity;
+    private ObstacleDistances obstacleDistances;
+    private Vector2 avoidanceDirection;
 
-    public ObstacleDetection(Transform transform, LayerMask obstacleMask, float distance)
+    public EnhancedObstacleDetection(Transform transform, LayerMask obstacleMask, float distance)
     {
         agentTransform = transform;
         obstacleLayerMask = obstacleMask;
         detectionDistance = distance;
+        obstacleDistances = new ObstacleDistances(distance, distance, distance, distance);
+        avoidanceDirection = Vector2.zero;
     }
 
     public void UpdateObstacleDetection()
     {
         Vector3 rayStart = agentTransform.position + Vector3.up * 0.5f;
-        Vector3 rayDirection = agentTransform.forward;
         
+        // Cast rays in 4 directions
+        float forwardDist = CastRay(rayStart, agentTransform.forward, Color.green);
+        float rightDist = CastRay(rayStart, agentTransform.right, Color.blue);
+        float leftDist = CastRay(rayStart, -agentTransform.right, Color.blue);
+        float backDist = CastRay(rayStart, -agentTransform.forward, Color.yellow);
+        
+        obstacleDistances = new ObstacleDistances(forwardDist, rightDist, leftDist, backDist);
+        
+        // Calculate avoidance direction
+        CalculateAvoidanceDirection();
+    }
+
+    private float CastRay(Vector3 origin, Vector3 direction, Color debugColor)
+    {
         RaycastHit hit;
-        if (Physics.Raycast(rayStart, rayDirection, out hit, detectionDistance, obstacleLayerMask))
+        if (Physics.Raycast(origin, direction, out hit, detectionDistance, obstacleLayerMask))
         {
-            isObstacleAhead = true;
-            lastHitDistance = hit.distance;
+            Debug.DrawRay(origin, direction * hit.distance, Color.red);
+            Debug.DrawRay(origin + direction * hit.distance, direction * (detectionDistance - hit.distance), debugColor);
+            return hit.distance;
         }
         else
         {
-            isObstacleAhead = false;
-            lastHitDistance = Mathf.Infinity;
+            Debug.DrawRay(origin, direction * detectionDistance, debugColor);
+            return detectionDistance;
+        }
+    }
+
+    private void CalculateAvoidanceDirection()
+    {
+        Vector2 avoidance = Vector2.zero;
+        
+        // Forward obstacle - move backward and to the side with more space
+        if (obstacleDistances.forward < detectionDistance * 0.8f)
+        {
+            float avoidanceStrength = 1f - (obstacleDistances.forward / detectionDistance);
+            avoidance.y -= avoidanceStrength * 0.8f; // Move backward
+            
+            // Choose side with more space
+            if (obstacleDistances.right > obstacleDistances.left)
+            {
+                avoidance.x += avoidanceStrength * 0.6f; // Move right
+            }
+            else
+            {
+                avoidance.x -= avoidanceStrength * 0.6f; // Move left
+            }
         }
         
-        // Debug visualization
-        Debug.DrawRay(rayStart, rayDirection * detectionDistance, isObstacleAhead ? Color.red : Color.green);
+        // Side obstacles
+        if (obstacleDistances.right < detectionDistance * 0.7f)
+        {
+            float avoidanceStrength = 1f - (obstacleDistances.right / detectionDistance);
+            avoidance.x -= avoidanceStrength * 0.7f; // Move left
+        }
+        
+        if (obstacleDistances.left < detectionDistance * 0.7f)
+        {
+            float avoidanceStrength = 1f - (obstacleDistances.left / detectionDistance);
+            avoidance.x += avoidanceStrength * 0.7f; // Move right
+        }
+        
+        // Back obstacle - move forward
+        if (obstacleDistances.back < detectionDistance * 0.6f)
+        {
+            float avoidanceStrength = 1f - (obstacleDistances.back / detectionDistance);
+            avoidance.y += avoidanceStrength * 0.5f; // Move forward
+        }
+        
+        avoidanceDirection = Vector2.ClampMagnitude(avoidance, 1f);
     }
 
-    public bool IsObstacleAhead() => isObstacleAhead;
-
-    // NEW: check if the detected obstacle is within a smaller threshold
-    public bool IsObstacleWithin(float distance)
-    {
-        return isObstacleAhead && lastHitDistance <= distance;
-    }
+    public ObstacleDistances GetObstacleDistances() => obstacleDistances;
+    public Vector2 GetAvoidanceDirection() => avoidanceDirection;
+    
+    public bool IsObstacleAhead() => obstacleDistances.forward < detectionDistance * 0.8f;
+    public bool IsObstacleWithin(float distance) => obstacleDistances.forward <= distance;
 }
 
 public class DebugDisplay

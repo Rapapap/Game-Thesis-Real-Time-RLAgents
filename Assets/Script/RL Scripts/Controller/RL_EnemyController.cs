@@ -31,7 +31,7 @@ public class RL_EnemyController : MonoBehaviour
     public HealthState healthState;
     public NormalEnemyActions.FleeState fleeState;
     public int enemyHP;
-    public float attackRange = 3f; 
+    public float attackRange = 2f; 
     #endregion
 
     #region Private Variables
