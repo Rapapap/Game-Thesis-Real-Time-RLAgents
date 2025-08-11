@@ -14,11 +14,11 @@ public class NormalEnemyRewards : MonoBehaviour
     public float ChasePlayerReward = +0.9f;
     public float AttackPlayerReward = +0.8f;
     public float HitByPlayerPunishment = -0.7f;
-    public float ObstaclePunishment = -0.050f;
 
     [Header("Rewards/Punishments (+0.005 to +0.5 / -0.005 to -0.5)")]
-    public float PatrolStepReward = +0.015f;
+    public float PatrolStepReward = +0.010f;
     public float PatrolWrongStepPunishment = -0.01f;
+    public float ObstaclePunishment = -0.20f;
     public float NoMovementPunishment = -0.010f;
     public float ApproachPlayerReward = +0.01f;
     public float ChaseStepReward = +0.010f;

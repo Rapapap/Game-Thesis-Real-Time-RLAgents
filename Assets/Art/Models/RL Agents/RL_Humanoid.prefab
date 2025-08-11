@@ -584,9 +584,9 @@ MonoBehaviour:
   ChasePlayerReward: 0.9
   AttackPlayerReward: 1
   HitByPlayerPunishment: -0.7
-  ObstaclePunishment: -0.9
   PatrolStepReward: 0.005
   PatrolWrongStepPunishment: -0.01
+  ObstaclePunishment: -0.9
   NoMovementPunishment: -0.01
   ApproachPlayerReward: 0.01
   ChaseStepReward: 0.01
@@ -1463,7 +1463,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 14
+    VectorObservationSize: 21
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 5
@@ -1472,7 +1472,7 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 5022602860645237092, guid: d26a273abfc85414ebc703c8256695b5, type: 3}
+  m_Model: {fileID: 5022602860645237092, guid: 1ef286edc85eb5741b76bcff8e76755c, type: 3}
   m_InferenceDevice: 0
   m_BehaviorType: 0
   m_BehaviorName: NormalEnemy

@@ -244,14 +244,13 @@ public class NormalEnemyAgent : Agent
         if (agentRigidbody == null) return;
 
         agentRigidbody.mass = 1f;
-        agentRigidbody.linearDamping = 2f; // Increased for smoother stopping
-        agentRigidbody.angularDamping = 5f; // Increased for better rotation control
+        agentRigidbody.linearDamping = 1f;
+        agentRigidbody.angularDamping = 3f;
         agentRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
-        agentRigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic; // More precise collision
+        agentRigidbody.collisionDetectionMode = CollisionDetectionMode.Continuous;
         agentRigidbody.constraints = RigidbodyConstraints.FreezeRotationX |
                                     RigidbodyConstraints.FreezeRotationZ |
                                     RigidbodyConstraints.FreezePositionY;
-        agentRigidbody.maxAngularVelocity = 5f; // Limit rotation speed
     }
 
     private void DisableConflictingComponents()
@@ -734,9 +733,9 @@ public class EnhancedMovementController
     {
         agentRigidbody = rigidbody;
         agentTransform = transform;
-        this.moveSpeed = moveSpeed * 0.8f; 
+        this.moveSpeed = moveSpeed;
         this.rotationSpeed = rotationSpeed;
-        maxVelocity = moveSpeed;
+        maxVelocity = moveSpeed * 1.5f;
     }
 
     public void Reset()
@@ -750,38 +749,45 @@ public class EnhancedMovementController
 
     public void ProcessMovement(float forward, float right, float rotation)
     {
+        // Compute local desired movement vector
         Vector3 localMove = new Vector3(right, 0f, forward);
         float magnitude = Mathf.Clamp01(localMove.magnitude);
 
-        // Apply movement force first for smoother transitions
-        if (magnitude > 0.001f)
+        if (magnitude <= 0.001f)
         {
-            Vector3 desiredWorld = agentTransform.TransformDirection(localMove.normalized);
-            Vector3 force = desiredWorld * moveSpeed * magnitude * 50f; // Reduced force multiplier
-            agentRigidbody.AddForce(force, ForceMode.Acceleration); // Changed to Acceleration for smoother response
+            // No movement input: handle rotation input only
+            HandleRotation(rotation);
+            return;
         }
 
-        // Handle rotation with improved smoothing
-        const float rotationDeadzone = 0.1f; // Increased deadzone
-        if (Mathf.Abs(rotation) > rotationDeadzone)
+        // Desired movement in world space based on current transform
+        Vector3 desiredWorld = agentTransform.TransformDirection(localMove.normalized);
+
+        // If rotation input is not provided or small, immediately turn toward desired heading
+        const float rotationDeadzone = 0.05f;
+        if (Mathf.Abs(rotation) <= rotationDeadzone)
         {
+            SmoothFaceDirection(desiredWorld);
+            // ensure angular velocity is not fighting our immediate rotation
+            agentRigidbody.angularVelocity = new Vector3(0f, 0f, 0f);
+        }
+        else
+        {
+            // Respect explicit rotation input (player/agent commanded)
             HandleRotation(rotation);
         }
-        else if (magnitude > 0.001f)
-        {
-            // Only auto-face movement direction when actually moving
-            SmoothFaceDirection(agentTransform.TransformDirection(localMove.normalized));
-        }
 
-        // Improved velocity clamping with gradual reduction
+        // Apply movement force in the desired world direction (already aligned with facing)
+        Vector3 force = desiredWorld * moveSpeed * magnitude * 100f; // force multiplier tuned for responsiveness
+        agentRigidbody.AddForce(force, ForceMode.Force);
+
+        // Clamp horizontal velocity only
         Vector3 velocity = agentRigidbody.linearVelocity;
         Vector3 horizontalVelocity = new Vector3(velocity.x, 0, velocity.z);
-        float currentSpeed = horizontalVelocity.magnitude;
 
-        if (currentSpeed > maxVelocity)
+        if (horizontalVelocity.magnitude > maxVelocity)
         {
-            float reductionFactor = Mathf.Lerp(1f, 0.9f, (currentSpeed - maxVelocity) / maxVelocity);
-            horizontalVelocity *= reductionFactor;
+            horizontalVelocity = horizontalVelocity.normalized * maxVelocity;
             agentRigidbody.linearVelocity = new Vector3(horizontalVelocity.x, velocity.y, horizontalVelocity.z);
         }
     }
@@ -794,6 +800,7 @@ public class EnhancedMovementController
         Quaternion targetRot = Quaternion.LookRotation(worldDir);
         float t = rotationSpeed * Time.fixedDeltaTime * 0.02f;
         Quaternion newRot = Quaternion.Slerp(agentTransform.rotation, targetRot, t);
+        // Use MoveRotation to play nicely with rigidbody physics
         agentRigidbody.MoveRotation(newRot);
     }
 
@@ -925,67 +932,51 @@ public class EnhancedObstacleDetection
     private void CalculateAvoidanceDirection()
     {
         Vector2 avoidance = Vector2.zero;
-        float forwardWeight = 0f;
-        float sideWeight = 0f;
 
-        // Calculate obstacle influence weights
-        float forwardInfluence = 1f - Mathf.Clamp01(obstacleDistances.forward / detectionDistance);
-        float rightInfluence = 1f - Mathf.Clamp01(obstacleDistances.right / detectionDistance);
-        float leftInfluence = 1f - Mathf.Clamp01(obstacleDistances.left / detectionDistance);
-        float backInfluence = 1f - Mathf.Clamp01(obstacleDistances.back / detectionDistance);
-
-        // Forward obstacle handling
-        if (forwardInfluence > 0.2f)
+        // If obstacle ahead, prefer moving backward and to the side with more space.
+        if (obstacleDistances.forward < detectionDistance * 0.8f)
         {
-            forwardWeight = forwardInfluence * 1.5f;
-            // Prefer moving to the side with more space
-            float rightSpace = Mathf.Min(obstacleDistances.right, obstacleDistances.forwardRight);
-            float leftSpace = Mathf.Min(obstacleDistances.left, obstacleDistances.forwardLeft);
-            
-            float spaceDiff = (rightSpace - leftSpace) / detectionDistance;
-            sideWeight = forwardInfluence * spaceDiff * 2f;
-            
-            // Slightly prefer moving forward if possible
-            avoidance.y -= forwardWeight * 0.7f;
-            avoidance.x += sideWeight;
+            float s = 1f - (obstacleDistances.forward / detectionDistance);
+            avoidance.y -= s * 0.9f; // move backward
+
+            // Prefer side with more clear diagonal/corner space
+            float rightScore = Mathf.Min(obstacleDistances.right, obstacleDistances.forwardRight);
+            float leftScore = Mathf.Min(obstacleDistances.left, obstacleDistances.forwardLeft);
+
+            if (rightScore > leftScore)
+                avoidance.x += s * 0.8f; // move right
+            else
+                avoidance.x -= s * 0.8f; // move left
         }
 
-        // Side obstacle handling
-        if (rightInfluence > 0.3f)
+        // Side obstacles bias away, check diagonals to prefer smarter sidesteps
+        if (obstacleDistances.right < detectionDistance * 0.7f)
         {
-            float rightWeight = rightInfluence * 1.2f;
-            avoidance.x -= rightWeight;
-            // If forward path is clear, encourage forward movement
-            if (obstacleDistances.forward > detectionDistance * 0.7f)
-                avoidance.y += rightWeight * 0.3f;
+            float s = 1f - (obstacleDistances.right / detectionDistance);
+            // but if forward-right diagonal is clear, prefer small forward-right instead of pure left
+            if (obstacleDistances.forwardRight > obstacleDistances.left)
+                avoidance.y += s * 0.25f; // small forward nudge
+            avoidance.x -= s * 0.8f; // move left
         }
 
-        if (leftInfluence > 0.3f)
+        if (obstacleDistances.left < detectionDistance * 0.7f)
         {
-            float leftWeight = leftInfluence * 1.2f;
-            avoidance.x += leftWeight;
-            // If forward path is clear, encourage forward movement
-            if (obstacleDistances.forward > detectionDistance * 0.7f)
-                avoidance.y += leftWeight * 0.3f;
+            float s = 1f - (obstacleDistances.left / detectionDistance);
+            if (obstacleDistances.forwardLeft > obstacleDistances.right)
+                avoidance.y += s * 0.25f;
+            avoidance.x += s * 0.8f; // move right
         }
 
-        // Back obstacle handling
-        if (backInfluence > 0.4f)
+        // Back obstacle -> move forward
+        if (obstacleDistances.back < detectionDistance * 0.6f)
         {
-            float backWeight = backInfluence * 1.0f;
-            avoidance.y += backWeight * 0.8f;
+            float s = 1f - (obstacleDistances.back / detectionDistance);
+            avoidance.y += s * 0.6f; // move forward
         }
 
-        // Normalize and apply smoothing
-        if (avoidance.sqrMagnitude > 0.1f)
-        {
-            avoidance = Vector2.ClampMagnitude(avoidance, 1f);
-            avoidanceDirection = Vector2.Lerp(avoidanceDirection, avoidance, 0.5f);
-        }
-        else
-        {
-            avoidanceDirection = Vector2.zero;
-        }
+        // If both forward diagonals are blocked but forward is somewhat clear, bias sideways less
+        // Clamp final avoidance
+        avoidanceDirection = Vector2.ClampMagnitude(avoidance, 1f);
     }
 
     public ObstacleDistances GetObstacleDistances() => obstacleDistances;
