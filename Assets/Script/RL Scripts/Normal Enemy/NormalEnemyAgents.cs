@@ -24,6 +24,10 @@ public class NormalEnemyAgent : Agent
     [SerializeField] private Vector2 debugTextOffset = new Vector2(10, 10);
     [SerializeField] private Color debugTextColor = Color.white;
     [SerializeField] private int debugFontSize = 14;
+    
+    [Header("Runtime Behavior")]
+    [Tooltip("Enable to allow episode reset/respawn in non-training scenarios")]
+    [SerializeField] private bool enableEpisodeReset = false;
     #endregion
 
     #region Public Properties
@@ -102,23 +106,27 @@ public class NormalEnemyAgent : Agent
             if (!isInitialized) return;
         }
 
-        ResetForNewEpisode();
-        RespawnAtRandomLocation();
-        ResetTrainingArena();
-        rl_EnemyController.ShowHealthBar();
-
-        if (animator != null)
+        // Only reset if in training mode or episode reset is explicitly enabled
+        if (TrainingActive || enableEpisodeReset)
         {
-            animator.SetBool("isDead", false);
-            animator.SetBool("isAttacking", false);
-            animator.SetBool("isWalking", false);
-            animator.SetBool("isIdle", true);
-            animator.ResetTrigger("getHit");
-        }
+            ResetForNewEpisode();
+            RespawnAtRandomLocation();
+            ResetTrainingArena();
+            rl_EnemyController.ShowHealthBar();
 
-        GetComponent<Collider>().enabled = true;
-        agentRigidbody.linearVelocity = Vector3.zero;
-        agentRigidbody.angularVelocity = Vector3.zero;
+            if (animator != null)
+            {
+                animator.SetBool("isDead", false);
+                animator.SetBool("isAttacking", false);
+                animator.SetBool("isWalking", false);
+                animator.SetBool("isIdle", true);
+                animator.ResetTrigger("getHit");
+            }
+
+            GetComponent<Collider>().enabled = true;
+            agentRigidbody.linearVelocity = Vector3.zero;
+            agentRigidbody.angularVelocity = Vector3.zero;
+        }
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -665,7 +673,11 @@ public class NormalEnemyAgent : Agent
         agentRigidbody.linearVelocity = Vector3.zero;
         agentRigidbody.angularVelocity = Vector3.zero;
 
-        EndEpisode();
+        // Only end episode if in training mode or episode reset is enabled
+        if (TrainingActive || enableEpisodeReset)
+        {
+            EndEpisode();
+        }
     }
 
     public void HandleDamage()

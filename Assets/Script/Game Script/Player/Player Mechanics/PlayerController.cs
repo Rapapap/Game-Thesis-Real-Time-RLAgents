@@ -154,7 +154,13 @@ public class PlayerController : MonoBehaviour
     {
         if (isEnemyDetected == true && enemyTransform != null)
         {
-            if (enemyTransform.gameObject.GetComponent<EnemyController>().enemyHP <= 0)
+            var enemyController = enemyTransform.gameObject.GetComponent<EnemyController>();
+            var rlEnemyController = enemyTransform.gameObject.GetComponent<RL_EnemyController>();
+            
+            bool isEnemyDead = (enemyController != null && enemyController.enemyHP <= 0) ||
+                             (rlEnemyController != null && rlEnemyController.enemyHP <= 0);
+            
+            if (isEnemyDead)
             {
                 enemyTransform = null;
                 isEnemyDetected = false;

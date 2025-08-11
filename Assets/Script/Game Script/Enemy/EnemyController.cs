@@ -69,15 +69,11 @@ public class EnemyController : MonoBehaviour
 
     #region Unity Methods
 
-    #endregion
-
-    #region Unity Methods
-
     void Start()
     {
         InitializeEnemyData();
         SetupInitialValues();
-        SetupNavMeshAgent();
+        StartCoroutine(SetupNavMeshAgentDelayed());
         boxCollider = GetComponent<BoxCollider>();
 
         // Retrieve the EnemyStatDisplay component
@@ -86,16 +82,20 @@ public class EnemyController : MonoBehaviour
 
     void Update()
     {
-        if (!isDead)
+        if (!isDead && IsNavMeshAgentValid())
         {
             EnvironmentView();
             HandleAttacking();
             HandlePatrolingAndChasing();
 
             Vector3 separationVector = GetSeparationVector();
-            navMeshAgent.SetDestination(navMeshAgent.destination + separationVector);
+            if (separationVector != Vector3.zero)
+            {
+                SetDestinationSafely(navMeshAgent.destination + separationVector);
+            }
         }
     }
+
     void OnCollisionStay(Collision collision)
     {
         if (collision.gameObject.CompareTag("Player"))
@@ -114,6 +114,7 @@ public class EnemyController : MonoBehaviour
             obstacle.size = collision.gameObject.GetComponent<Collider>().bounds.size;
         }
     }
+
     void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player") && other.gameObject.layer == LayerMask.NameToLayer("Hitbox"))
@@ -134,7 +135,7 @@ public class EnemyController : MonoBehaviour
         if (other.CompareTag("Player") && other.gameObject.layer == LayerMask.NameToLayer("Hitbox"))
         {
             m_IsAttacking = false;
-            if (navMeshAgent != null && navMeshAgent.isOnNavMesh)
+            if (IsNavMeshAgentValid())
             {
                 Move(speedWalk);
             }
@@ -180,16 +181,92 @@ public class EnemyController : MonoBehaviour
         m_CaughtPlayer = false;
         m_WaitTime = startWaitTime;
         m_TimeToRotate = timeToRotate;
-        m_CurrentWaypointIndex = Random.Range(0, waypoints.Length); // Randomize initial waypoint
+        
+        if (waypoints != null && waypoints.Length > 0)
+        {
+            m_CurrentWaypointIndex = Random.Range(0, waypoints.Length); // Randomize initial waypoint
+        }
+        else
+        {
+            m_CurrentWaypointIndex = 0;
+            Debug.LogWarning("EnemyController: No waypoints assigned to " + gameObject.name);
+        }
     }
 
-    private void SetupNavMeshAgent()
+    private IEnumerator SetupNavMeshAgentDelayed()
     {
+        // Wait a frame to ensure the object is properly positioned
+        yield return null;
+        
         navMeshAgent = GetComponent<NavMeshAgent>();
-        navMeshAgent.isStopped = false;
-        navMeshAgent.speed = speedWalk;
-        navMeshAgent.SetDestination(GetRandomPointAroundWaypoint(waypoints[m_CurrentWaypointIndex])); // Use random point
-        Move(speedWalk);
+        if (navMeshAgent == null)
+        {
+            Debug.LogError("EnemyController: NavMeshAgent component not found on " + gameObject.name);
+            yield break;
+        }
+
+        // Wait until the agent is properly placed on the NavMesh
+        int attempts = 0;
+        while (!navMeshAgent.isOnNavMesh && attempts < 10)
+        {
+            yield return new WaitForSeconds(0.1f);
+            
+            // Try to warp the agent to the NavMesh
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(transform.position, out hit, 1.0f, NavMesh.AllAreas))
+            {
+                transform.position = hit.position;
+            }
+            attempts++;
+        }
+
+        if (navMeshAgent.isOnNavMesh)
+        {
+            navMeshAgent.isStopped = false;
+            navMeshAgent.speed = speedWalk;
+            
+            if (waypoints != null && waypoints.Length > 0)
+            {
+                Vector3 destination = GetRandomPointAroundWaypoint(waypoints[m_CurrentWaypointIndex]);
+                SetDestinationSafely(destination);
+            }
+            
+            Move(speedWalk);
+        }
+        else
+        {
+            Debug.LogError("EnemyController: Could not place " + gameObject.name + " on NavMesh after multiple attempts");
+        }
+    }
+
+    // Helper method to safely check if NavMeshAgent is valid and ready
+    private bool IsNavMeshAgentValid()
+    {
+        return navMeshAgent != null && 
+               navMeshAgent.enabled && 
+               navMeshAgent.gameObject.activeInHierarchy && 
+               navMeshAgent.isOnNavMesh;
+    }
+
+    // Helper method to safely set destination
+    private bool SetDestinationSafely(Vector3 destination)
+    {
+        if (IsNavMeshAgentValid())
+        {
+            navMeshAgent.SetDestination(destination);
+            return true;
+        }
+        return false;
+    }
+
+    // Helper method to safely get remaining distance
+    private float GetRemainingDistanceSafely()
+    {
+        if (IsNavMeshAgentValid())
+        {
+            return navMeshAgent.remainingDistance;
+        }
+        return float.MaxValue;
     }
 
     private void HandleAttacking()
@@ -267,20 +344,21 @@ public class EnemyController : MonoBehaviour
 
     private void Move(float speed)
     {
-        if (navMeshAgent != null && navMeshAgent.isOnNavMesh)
+        if (IsNavMeshAgentValid())
         {
             navMeshAgent.isStopped = false;
             navMeshAgent.speed = speed;
-            animator.SetBool("isWalking", true);
-        }
-        else
-        {
-            // Debug.LogWarning("NavMeshAgent is not properly set up or not on a NavMesh.");
+            if (animator != null)
+            {
+                animator.SetBool("isWalking", true);
+            }
         }
     }
 
     private void Patroling()
     {
+        if (!IsNavMeshAgentValid()) return;
+
         if (m_PlayerNear)
         {
             if (m_TimeToRotate <= 0)
@@ -298,7 +376,9 @@ public class EnemyController : MonoBehaviour
         {
             m_PlayerNear = false;
             playerLastPosition = Vector3.zero;
-            if (navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance)
+            
+            float remainingDistance = GetRemainingDistanceSafely();
+            if (remainingDistance <= navMeshAgent.stoppingDistance)
             {
                 if (m_WaitTime <= 0)
                 {
@@ -317,26 +397,41 @@ public class EnemyController : MonoBehaviour
 
     private void NextPoint()
     {
+        if (waypoints == null || waypoints.Length == 0) return;
+
         int nextWaypointIndex;
         do
         {
             nextWaypointIndex = Random.Range(0, waypoints.Length);
-        } while (nextWaypointIndex == m_CurrentWaypointIndex);
+        } while (nextWaypointIndex == m_CurrentWaypointIndex && waypoints.Length > 1);
 
         m_CurrentWaypointIndex = nextWaypointIndex;
-        navMeshAgent.SetDestination(GetRandomPointAroundWaypoint(waypoints[m_CurrentWaypointIndex]));
+        Vector3 destination = GetRandomPointAroundWaypoint(waypoints[m_CurrentWaypointIndex]);
+        SetDestinationSafely(destination);
     }
 
     private Vector3 GetRandomPointAroundWaypoint(Transform waypoint)
     {
+        if (waypoint == null) return transform.position;
+
         Vector3 randomDirection;
         NavMeshHit hit;
+        int attempts = 0;
+        
         do
         {
             randomDirection = Random.insideUnitSphere * patrolRadius;
             randomDirection += waypoint.position;
+            randomDirection.y = waypoint.position.y; // Keep same Y level
+            attempts++;
+            
+            if (attempts > 10) // Prevent infinite loop
+            {
+                return waypoint.position;
+            }
         }
-        while (NavMesh.SamplePosition(randomDirection, out hit, patrolRadius, 1) && occupiedWaypoints.Contains(hit.position));
+        while (!NavMesh.SamplePosition(randomDirection, out hit, patrolRadius, NavMesh.AllAreas) || 
+               occupiedWaypoints.Contains(hit.position));
 
         occupiedWaypoints.Add(hit.position);
         StartCoroutine(RemoveOccupiedPointAfterDelay(hit.position, 2.0f));
@@ -352,7 +447,10 @@ public class EnemyController : MonoBehaviour
             if (collider.transform != transform)
             {
                 Vector3 direction = transform.position - collider.transform.position;
-                separation += direction.normalized / direction.magnitude;
+                if (direction.magnitude > 0) // Prevent division by zero
+                {
+                    separation += direction.normalized / direction.magnitude;
+                }
             }
         }
         return separation;
@@ -366,14 +464,19 @@ public class EnemyController : MonoBehaviour
 
     private void LookingPlayer(Vector3 player)
     {
-        navMeshAgent.SetDestination(player);
+        if (!IsNavMeshAgentValid()) return;
+
+        SetDestinationSafely(player);
         if (Vector3.Distance(transform.position, player) <= 0.3f)
         {
             if (m_WaitTime <= 0)
             {
                 m_PlayerNear = false;
                 Move(speedWalk);
-                navMeshAgent.SetDestination(waypoints[m_CurrentWaypointIndex].position);
+                if (waypoints != null && waypoints.Length > 0 && m_CurrentWaypointIndex < waypoints.Length)
+                {
+                    SetDestinationSafely(waypoints[m_CurrentWaypointIndex].position);
+                }
                 m_WaitTime = startWaitTime;
                 m_TimeToRotate = timeToRotate;
             }
@@ -387,31 +490,45 @@ public class EnemyController : MonoBehaviour
 
     private void Chasing()
     {
+        if (!IsNavMeshAgentValid()) return;
+
         m_PlayerNear = false;
         playerLastPosition = Vector3.zero;
 
         if (!m_CaughtPlayer)
         {
             Move(speedRun);
-            navMeshAgent.SetDestination(m_PlayerPosition);
+            SetDestinationSafely(m_PlayerPosition);
         }
-        if (navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance)
+        
+        float remainingDistance = GetRemainingDistanceSafely();
+        if (remainingDistance <= navMeshAgent.stoppingDistance)
         {
-            if (m_WaitTime <= 0 && !m_CaughtPlayer && Vector3.Distance(transform.position, GameObject.FindGameObjectWithTag("Player").transform.position) >= 6f)
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null)
             {
-                m_IsPatrol = true;
-                m_PlayerNear = false;
-                Move(speedWalk);
-                m_TimeToRotate = timeToRotate;
-                m_WaitTime = startWaitTime;
-                navMeshAgent.SetDestination(waypoints[m_CurrentWaypointIndex].position);
-            }
-            else
-            {
-                if (Vector3.Distance(transform.position, GameObject.FindGameObjectWithTag("Player").transform.position) >= 2.5f)
+                float distanceToPlayer = Vector3.Distance(transform.position, player.transform.position);
+                
+                if (m_WaitTime <= 0 && !m_CaughtPlayer && distanceToPlayer >= 6f)
                 {
-                    StartCoroutine(StopNavMeshAgent());
-                    m_WaitTime -= Time.deltaTime;
+                    m_IsPatrol = true;
+                    m_PlayerNear = false;
+                    Move(speedWalk);
+                    m_TimeToRotate = timeToRotate;
+                    m_WaitTime = startWaitTime;
+                    
+                    if (waypoints != null && waypoints.Length > 0 && m_CurrentWaypointIndex < waypoints.Length)
+                    {
+                        SetDestinationSafely(waypoints[m_CurrentWaypointIndex].position);
+                    }
+                }
+                else
+                {
+                    if (distanceToPlayer >= 2.5f)
+                    {
+                        StartCoroutine(StopNavMeshAgent());
+                        m_WaitTime -= Time.deltaTime;
+                    }
                 }
             }
         }
@@ -438,7 +555,10 @@ public class EnemyController : MonoBehaviour
         if (enemyHP > 0)
         {
             GetHit();
-            vfxManager.EnemyGettingHit(positionParticles, enemyType);
+            if (vfxManager != null)
+            {
+                vfxManager.EnemyGettingHit(positionParticles, enemyType);
+            }
             OnPlayerAttack();
         }
         else
@@ -446,15 +566,18 @@ public class EnemyController : MonoBehaviour
             Die();
         }
     }
+
     public void OnPlayerAttack()
     {
         if (!isDead)
         {
             m_PlayerInRange = true;
             m_IsPatrol = false;
-            m_PlayerPosition = PlayerController.Instance.transform.position;
-
-            RotateTowardsPlayer(m_PlayerPosition, rotationSpeed);
+            if (PlayerController.Instance != null)
+            {
+                m_PlayerPosition = PlayerController.Instance.transform.position;
+                RotateTowardsPlayer(m_PlayerPosition, rotationSpeed);
+            }
 
             if (!m_IsAttacking)
             {
@@ -463,10 +586,12 @@ public class EnemyController : MonoBehaviour
         }
     }
 
-
     private void GetHit()
     {
-        animator.SetTrigger("getHit");
+        if (animator != null)
+        {
+            animator.SetTrigger("getHit");
+        }
         if (AudioManager.instance != null)
         {
             AudioManager.instance.PlayEnemyGetHitSound(enemyType);
@@ -475,102 +600,128 @@ public class EnemyController : MonoBehaviour
 
     private void Die()
     {
-        animator.SetTrigger("isDead");
+        if (animator != null)
+        {
+            animator.SetTrigger("isDead");
+        }
         if (AudioManager.instance != null)
         {
             AudioManager.instance.PlayEnemyDieSound(enemyType);
         }
 
-        navMeshAgent.isStopped = true;
-        navMeshAgent.enabled = false;
+        if (IsNavMeshAgentValid())
+        {
+            navMeshAgent.isStopped = true;
+            navMeshAgent.enabled = false;
+        }
 
-        GetComponent<Collider>().enabled = false;
+        Collider collider = GetComponent<Collider>();
+        if (collider != null)
+        {
+            collider.enabled = false;
+        }
 
         if (healthBar != null)
         {
             healthBar.gameObject.SetActive(false);
         }
-        GameProgression.Instance.EnemyKill();
-        lootManager.SpawnGearLoot(transform);
+        
+        if (GameProgression.Instance != null)
+        {
+            GameProgression.Instance.EnemyKill();
+        }
+        
+        if (lootManager != null)
+        {
+            lootManager.SpawnGearLoot(transform);
+        }
+        
         isDead = true;
         Destroy(gameObject, 8f);
     }
 
-
     IEnumerator Attack()
     {
         canAttack = false;
-        animator.SetBool("isAttacking", true);
+        if (animator != null)
+        {
+            animator.SetBool("isAttacking", true);
+        }
         StartCoroutine(StopNavMeshAgent());
         yield return new WaitForSeconds(1);
-        animator.SetBool("isAttacking", false);
-        animator.SetBool("isWalking", false);
+        if (animator != null)
+        {
+            animator.SetBool("isAttacking", false);
+            animator.SetBool("isWalking", false);
+        }
         yield return new WaitForSeconds(2);
         canAttack = true;
     }
 
     public void AttackEnd()
     {
-        Collider[] colliders = Physics.OverlapBox(boxCollider.bounds.center, boxCollider.bounds.extents, boxCollider.transform.rotation);
-        foreach (Collider collider in colliders)
+        if (boxCollider != null)
         {
-            if (collider.CompareTag("Player"))
+            Collider[] colliders = Physics.OverlapBox(boxCollider.bounds.center, boxCollider.bounds.extents, boxCollider.transform.rotation);
+            foreach (Collider collider in colliders)
             {
-                PlayerController.Instance.DamagePlayer(enemyData.enemyAttack, knockback, transform.position);
-                if (AudioManager.instance != null)
+                if (collider.CompareTag("Player") && PlayerController.Instance != null)
                 {
-                    AudioManager.instance.PlayEnemyAttackSound(enemyType);
+                    PlayerController.Instance.DamagePlayer(enemyData.enemyAttack, knockback, transform.position);
+                    if (AudioManager.instance != null)
+                    {
+                        AudioManager.instance.PlayEnemyAttackSound(enemyType);
+                    }
+                    break;
                 }
-                break;
             }
         }
     }
 
     IEnumerator knockback()
     {
-        Vector3 knockbackDirection = (transform.position - PlayerController.Instance.transform.position).normalized;
-        float knockbackForce = 10f;
-        float knockbackDuration = 0.5f;
-
-
-        float elapsedTime1 = 0f;
-        while (elapsedTime1 < knockbackDuration)
+        if (PlayerController.Instance != null && IsNavMeshAgentValid())
         {
-            navMeshAgent.Move(knockbackDirection * knockbackForce * Time.deltaTime);
-            elapsedTime1 += Time.deltaTime;
-            yield return null;
-        }
+            Vector3 knockbackDirection = (transform.position - PlayerController.Instance.transform.position).normalized;
+            float knockbackForce = 10f;
+            float knockbackDuration = 0.5f;
 
-        Move(speedWalk);
+            float elapsedTime1 = 0f;
+            while (elapsedTime1 < knockbackDuration)
+            {
+                navMeshAgent.Move(knockbackDirection * knockbackForce * Time.deltaTime);
+                elapsedTime1 += Time.deltaTime;
+                yield return null;
+            }
+
+            Move(speedWalk);
+        }
     }
 
     private IEnumerator StopNavMeshAgent()
     {
-        if (navMeshAgent != null && navMeshAgent.isOnNavMesh)
+        if (IsNavMeshAgentValid())
         {
             navMeshAgent.isStopped = true;
-            animator.SetBool("isWalking", false);
+            if (animator != null)
+            {
+                animator.SetBool("isWalking", false);
+            }
             nonBossEnemyState = NonBossEnemyState.Idle;
 
             yield return new WaitForSeconds(startWaitTime);
 
-            if (navMeshAgent != null && navMeshAgent.isOnNavMesh)
+            if (IsNavMeshAgentValid() && !isDead)
             {
                 navMeshAgent.isStopped = false;
-                navMeshAgent.SetDestination(navMeshAgent.destination); // Resume navigation
-                animator.SetBool("isWalking", true);
+                SetDestinationSafely(navMeshAgent.destination); // Resume navigation
+                if (animator != null)
+                {
+                    animator.SetBool("isWalking", true);
+                }
             }
-            else
-            {
-                // Debug.LogWarning("NavMeshAgent is not properly set up or disabled.");
-            }
-        }
-        else
-        {
-            // Debug.LogWarning("NavMeshAgent is not properly set up or disabled.");
         }
     }
-
 
     #endregion
 }
