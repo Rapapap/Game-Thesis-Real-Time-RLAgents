@@ -75,7 +75,6 @@ public class NormalEnemyAgent : Agent
 
         if (rl_EnemyController == null || agentRigidbody == null)
         {
-            Debug.LogError("NormalEnemyAgent: Missing required components!", gameObject);
             enabled = false;
             return;
         }
@@ -236,30 +235,22 @@ public class NormalEnemyAgent : Agent
         patrolSystem = new PatrolSystem(patrolPoints);
         movementController = new EnhancedMovementController(agentRigidbody, transform, moveSpeed, rotationSpeed);
         debugDisplay = new DebugDisplay();
-
-        if (patrolPoints.Length > 0)
-        {
-            Debug.Log($"{gameObject.name} initialized with {patrolPoints.Length} patrol points");
-        }
-        else
-        {
-            Debug.LogWarning($"{gameObject.name} has no patrol points assigned!");
-        }
     }
 
     private void ConfigureRigidbody()
     {
         if (agentRigidbody == null) return;
-
-        agentRigidbody.mass = 1f;
-        agentRigidbody.linearDamping = 2f; // Increased for smoother stopping
-        agentRigidbody.angularDamping = 5f; // Increased for better rotation control
+        agentRigidbody.linearDamping = 1f;     
+        agentRigidbody.angularDamping = 2f;    
         agentRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
-        agentRigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic; // More precise collision
+        agentRigidbody.collisionDetectionMode = CollisionDetectionMode.Continuous; 
         agentRigidbody.constraints = RigidbodyConstraints.FreezeRotationX |
                                     RigidbodyConstraints.FreezeRotationZ |
                                     RigidbodyConstraints.FreezePositionY;
-        agentRigidbody.maxAngularVelocity = 5f; // Limit rotation speed
+        agentRigidbody.maxAngularVelocity = 10f;    
+        agentRigidbody.maxDepenetrationVelocity = 5f;  
+        agentRigidbody.solverIterations = 4;       
+        agentRigidbody.solverVelocityIterations = 1; 
     }
 
     private void DisableConflictingComponents()
@@ -273,7 +264,6 @@ public class NormalEnemyAgent : Agent
                 !component.GetType().Name.Contains("RL_Enemy"))
             {
                 component.enabled = false;
-                Debug.Log($"Disabled conflicting component: {component.GetType().Name}");
             }
         }
     }
@@ -349,7 +339,6 @@ public class NormalEnemyAgent : Agent
         var patrolPoints = patrolSystem.GetPatrolPoints();
         if (patrolPoints.Length == 0)
         {
-            Debug.LogWarning($"{gameObject.name} has no patrol points for respawning!");
             return;
         }
 
@@ -461,6 +450,7 @@ public class NormalEnemyAgent : Agent
 
         Vector3 playerPos = playerDetection.GetPlayerPosition();
         bool playerInRange = IsPlayerInAttackRange();
+        float distanceToPlayer = Vector3.Distance(transform.position, playerPos);
 
         if (!isCurrentlyChasing)
         {
@@ -468,20 +458,29 @@ public class NormalEnemyAgent : Agent
             isCurrentlyChasing = true;
         }
 
-        if (playerInRange)
+        // FIXED: Always face the player during chase
+        movementController.FaceTarget(playerPos);
+
+        if (playerInRange && distanceToPlayer <= rl_EnemyController.attackRange)
         {
-            movementController.FaceTarget(playerPos);
+            // Stop moving when in attack range and face player
             ProcessAttackAction(shouldAttack);
         }
         else
         {
+            // FIXED: More aggressive chase behavior with proper direction calculation
             Vector3 directionToPlayer = (playerPos - transform.position).normalized;
             Vector3 localDirection = transform.InverseTransformDirection(directionToPlayer);
 
-            float chaseForward = Mathf.Max(forward, localDirection.z * 0.8f);
-            float chaseRight = right + localDirection.x * 0.3f;
+            // Enhanced chase movement - prioritize forward movement toward player
+            float chaseForward = Mathf.Max(0.8f, localDirection.z); // Minimum forward momentum
+            float chaseRight = localDirection.x * 0.7f; // Side adjustment
 
-            movementController.ProcessMovement(chaseForward, chaseRight, rotation);
+            // Override user inputs during chase for more aggressive behavior
+            chaseForward = Mathf.Max(forward, chaseForward);
+            chaseRight = right + chaseRight;
+
+            movementController.ProcessMovement(chaseForward, chaseRight, 0f); // No manual rotation during chase
         }
     }
 
@@ -531,31 +530,52 @@ public class NormalEnemyAgent : Agent
 
     private void ExecuteAttack()
     {
+        if (!IsPlayerInAttackRange() || IsDead) return;
+
         lastAttackTime = Time.fixedTime;
-        rewardConfig.AddAttackReward(this);
-        rl_EnemyController.AgentAttack();
         currentState = "Attacking";
         currentAction = "Attacking";
+
+        // FIXED: Ensure proper facing before attack
+        if (playerDetection.IsPlayerAvailable())
+        {
+            Vector3 playerPos = playerDetection.GetPlayerPosition();
+            movementController.FaceTarget(playerPos);
+        }
+        else
+        {
+            // Direct attack if player position unavailable
+            rl_EnemyController.AgentAttack();
+            rewardConfig.AddAttackReward(this);
+        }
     }
 
     private void ProcessAttackAction(bool shouldAttack)
     {
         bool canAttack = Time.fixedTime - lastAttackTime >= 0.5f;
-        bool shouldAttackAnim = canAttack && rl_EnemyController.combatState.IsAttacking;
+        bool playerInRange = IsPlayerInAttackRange();
 
-        if (shouldAttack && canAttack)
+        // Only attempt attack if all conditions are met
+        if (shouldAttack && canAttack && playerInRange && !IsDead)
         {
             ExecuteAttack();
+            rewardConfig.AddAttackReward(this);
         }
-        else if (canAttack && !shouldAttack)
+        else if (shouldAttack && !canAttack)
         {
+            // Don't punish for attack cooldown, just for premature attacking
+            if (playerInRange)
+            {
+                rewardConfig.AddDoesntAttackInstantlyPunishment(this);
+            }
+        }
+        else if (!shouldAttack && canAttack && playerInRange)
+        {
+            // Player is in range but agent chose not to attack
             rewardConfig.AddDoesntAttackInstantlyPunishment(this);
         }
-        else if (shouldAttackAnim && !animator.GetCurrentAnimatorStateInfo(0).IsName("Attack"))
-        {
-            animator.Play("Attack", 0, 0f);
-        }
     }
+
 
     private void UpdateMovementAnimation()
     {
@@ -572,23 +592,31 @@ public class NormalEnemyAgent : Agent
     private void CheckStuckState()
     {
         float distanceMoved = Vector3.Distance(transform.position, lastPosition);
+        float velocityMagnitude = agentRigidbody.linearVelocity.magnitude;
 
-        if (distanceMoved < STUCK_THRESHOLD)
+        // FIXED: Better stuck detection considering both movement and velocity
+        if (distanceMoved < STUCK_THRESHOLD && velocityMagnitude < 0.2f)
         {
             stuckTimer += Time.fixedDeltaTime;
             if (stuckTimer >= STUCK_TIME_LIMIT)
             {
-                AddReward(-0.1f);
+                // FIXED: Add small random impulse to unstick
+                Vector3 randomDirection = Random.insideUnitSphere;
+                randomDirection.y = 0f;
+                randomDirection = randomDirection.normalized;
+                agentRigidbody.AddForce(randomDirection * 2f, ForceMode.VelocityChange);  
+                rewardConfig.AddObstaclePunishment(this, Time.deltaTime);
                 stuckTimer = 0f;
             }
         }
         else
         {
-            stuckTimer = 0f;
+            stuckTimer = Mathf.Max(0f, stuckTimer - Time.fixedDeltaTime * 2f); 
         }
 
         lastPosition = transform.position;
     }
+
     #endregion
 
     #region Reward & Behavior Updates
@@ -685,7 +713,14 @@ public class NormalEnemyAgent : Agent
         rewardConfig.AddDamagePunishment(this);
         currentState = "Taking Damage";
         currentAction = "Reacting";
-        isCurrentlyChasing = false;
+        
+        if (!isCurrentlyChasing && playerDetection.IsPlayerVisible)
+        {
+            isCurrentlyChasing = true;
+            rewardConfig.AddChasePlayerReward(this);
+        }
+        
+        playerDetection.UpdatePlayerDetection(transform.position);
     }
 
     public void HandleAttackMissed()
@@ -710,9 +745,13 @@ public class NormalEnemyAgent : Agent
     private bool IsAgentKnockedBack() => rl_EnemyController.IsKnockedBack();
     private bool IsAgentFleeing() => rl_EnemyController.IsFleeing();
     private bool ShouldAgentFlee() => rl_EnemyController.IsHealthLow() && playerDetection.IsPlayerAvailable();
-    private bool IsPlayerInAttackRange() =>
-        playerDetection.IsPlayerAvailable() &&
-        Vector3.Distance(transform.position, playerDetection.GetPlayerPosition()) <= rl_EnemyController.attackRange;
+    private bool IsPlayerInAttackRange()
+    {
+        if (!playerDetection.IsPlayerAvailable()) return false;
+        
+        float distance = Vector3.Distance(transform.position, playerDetection.GetPlayerPosition());
+        return distance <= rl_EnemyController.attackRange && distance >= 1.5f; 
+    }
 
     public void SetPatrolPoints(Transform[] points) => patrolSystem?.SetPatrolPoints(points);
 
@@ -741,15 +780,17 @@ public class EnhancedMovementController
     private readonly float moveSpeed;
     private readonly float rotationSpeed;
     private readonly float maxVelocity;
+    private readonly float movementSmoothness = 10f; // New smoothness parameter
 
     public EnhancedMovementController(Rigidbody rigidbody, Transform transform, float moveSpeed, float rotationSpeed)
     {
         agentRigidbody = rigidbody;
         agentTransform = transform;
-        this.moveSpeed = moveSpeed * 0.8f; 
+        this.moveSpeed = moveSpeed;
         this.rotationSpeed = rotationSpeed;
+        this.maxVelocity = moveSpeed * 1.5f;
     }
-
+    
     public void Reset()
     {
         if (agentRigidbody != null)
@@ -762,82 +803,85 @@ public class EnhancedMovementController
     public void ProcessMovement(float forward, float right, float rotation)
     {
         Vector3 localMove = new Vector3(right, 0f, forward);
-        float magnitude = Mathf.Clamp01(localMove.magnitude);
+        float inputMagnitude = localMove.magnitude;
 
-        // Apply movement force first for smoother transitions
-        if (magnitude > 0.001f)
+        if (inputMagnitude > 0.05f) 
         {
-            Vector3 desiredWorld = agentTransform.TransformDirection(localMove.normalized);
-            Vector3 force = desiredWorld * moveSpeed * magnitude * 50f; // Reduced force multiplier
-            agentRigidbody.AddForce(force, ForceMode.Acceleration); // Changed to Acceleration for smoother response
-        }
+            Vector3 normalizedInput = localMove.normalized;
+            Vector3 worldDirection = agentTransform.TransformDirection(normalizedInput);
+            Vector3 targetVelocity = worldDirection * moveSpeed * Mathf.Clamp01(inputMagnitude);
 
-        // Handle rotation with improved smoothing
-        const float rotationDeadzone = 0.1f; // Increased deadzone
-        if (Mathf.Abs(rotation) > rotationDeadzone)
-        {
-            HandleRotation(rotation);
-        }
-        else if (magnitude > 0.001f)
-        {
-            // Only auto-face movement direction when actually moving
-            SmoothFaceDirection(agentTransform.TransformDirection(localMove.normalized));
-        }
 
-        // Improved velocity clamping with gradual reduction
-        Vector3 velocity = agentRigidbody.linearVelocity;
-        Vector3 horizontalVelocity = new Vector3(velocity.x, 0, velocity.z);
-        float currentSpeed = horizontalVelocity.magnitude;
+            Vector3 currentHorizontalVelocity = new Vector3(agentRigidbody.linearVelocity.x, 0f, agentRigidbody.linearVelocity.z);
+            Vector3 velocityChange = targetVelocity - currentHorizontalVelocity;
+            
 
-        if (currentSpeed > maxVelocity)
-        {
-            float reductionFactor = Mathf.Lerp(1f, 0.9f, (currentSpeed - maxVelocity) / maxVelocity);
-            horizontalVelocity *= reductionFactor;
-            agentRigidbody.linearVelocity = new Vector3(horizontalVelocity.x, velocity.y, horizontalVelocity.z);
-        }
-    }
-
-    private void SmoothFaceDirection(Vector3 worldDir)
-    {
-        worldDir.y = 0f;
-        if (worldDir.sqrMagnitude <= 0.0001f) return;
-
-        Quaternion targetRot = Quaternion.LookRotation(worldDir);
-        float t = rotationSpeed * Time.fixedDeltaTime * 0.02f;
-        Quaternion newRot = Quaternion.Slerp(agentTransform.rotation, targetRot, t);
-        agentRigidbody.MoveRotation(newRot);
-    }
-
-    private void HandleRotation(float rotationInput)
-    {
-        const float rotationDeadzone = 0.05f;
-        const float dampingFactor = 0.3f;
-
-        if (Mathf.Abs(rotationInput) > rotationDeadzone)
-        {
-            float targetAngularVelocity = rotationInput * rotationSpeed * Mathf.Deg2Rad;
-            float currentAngularVelocity = agentRigidbody.angularVelocity.y;
-            float smoothedAngularVelocity = Mathf.Lerp(currentAngularVelocity, targetAngularVelocity, dampingFactor);
-            agentRigidbody.angularVelocity = new Vector3(0f, smoothedAngularVelocity, 0f);
+            agentRigidbody.AddForce(velocityChange * 5f, ForceMode.Acceleration);
         }
         else
         {
-            Vector3 currentAngVel = agentRigidbody.angularVelocity;
-            Vector3 dampedAngVel = Vector3.Lerp(currentAngVel, Vector3.zero, 0.5f);
-            agentRigidbody.angularVelocity = new Vector3(0f, dampedAngVel.y, 0f);
+            Vector3 currentVelocity = agentRigidbody.linearVelocity;
+            Vector3 brakingForce = -new Vector3(currentVelocity.x, 0f, currentVelocity.z) * 5f;
+            agentRigidbody.AddForce(brakingForce, ForceMode.Acceleration);
+        }
+
+        HandleRotation(rotation, inputMagnitude);
+        ClampVelocity();
+    }
+
+    private void HandleRotation(float rotationInput, float movementMagnitude)
+    {
+        const float rotationDeadzone = 0.1f;
+        const float rotationSmoothness = 8f;
+
+        if (Mathf.Abs(rotationInput) > rotationDeadzone)
+        {
+            // Manual rotation - more responsive
+            float targetAngularVelocity = rotationInput * rotationSpeed * Mathf.Deg2Rad;
+            agentRigidbody.angularVelocity = Vector3.Lerp(
+                agentRigidbody.angularVelocity, 
+                new Vector3(0f, targetAngularVelocity, 0f), 
+                Time.fixedDeltaTime * rotationSmoothness
+            );
+        }
+        else
+        {
+            // Smooth stop rotation
+            agentRigidbody.angularVelocity = Vector3.Lerp(
+                agentRigidbody.angularVelocity, 
+                Vector3.zero, 
+                Time.fixedDeltaTime * rotationSmoothness
+            );
         }
     }
 
     public void FaceTarget(Vector3 targetPosition)
     {
         Vector3 direction = (targetPosition - agentTransform.position);
-        direction.y = 0;
+        direction.y = 0f;
 
         if (direction.sqrMagnitude > 0.01f)
         {
             Quaternion targetRotation = Quaternion.LookRotation(direction);
-            Quaternion newRot = Quaternion.Slerp(agentTransform.rotation, targetRotation, rotationSpeed * Time.fixedDeltaTime * 0.02f);
-            agentRigidbody.MoveRotation(newRot);
+            // FIXED: More responsive target facing
+            float rotationSpeed = this.rotationSpeed * 2f; // Faster target facing
+            agentTransform.rotation = Quaternion.Slerp(
+                agentTransform.rotation, 
+                targetRotation, 
+                rotationSpeed * Time.fixedDeltaTime
+            );
+        }
+    }
+
+    private void ClampVelocity()
+    {
+        Vector3 velocity = agentRigidbody.linearVelocity;
+        Vector3 horizontalVelocity = new Vector3(velocity.x, 0f, velocity.z);
+        
+        if (horizontalVelocity.magnitude > maxVelocity)
+        {
+            horizontalVelocity = horizontalVelocity.normalized * maxVelocity;
+            agentRigidbody.linearVelocity = new Vector3(horizontalVelocity.x, velocity.y, horizontalVelocity.z);
         }
     }
 }

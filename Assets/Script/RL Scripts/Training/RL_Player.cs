@@ -52,12 +52,17 @@ public class RL_Player : MonoBehaviour
         SetAutoAttackEnabled(true);
     }
 
-    public bool DamagePlayer(float damageAmount)
+    public bool DamagePlayer(float damageAmount, System.Func<bool> knockbackCallback = null, Vector3 hitPosition = default)
     {
         if (!CanTakeDamage()) return false;
 
         currentHealth = Mathf.Clamp(currentHealth - damageAmount, 0f, maxHealth);
         UpdateHealthBar();
+
+        if (knockbackCallback != null)
+        {
+            knockbackCallback.Invoke();
+        }
 
         if (currentHealth > 0f)
         {

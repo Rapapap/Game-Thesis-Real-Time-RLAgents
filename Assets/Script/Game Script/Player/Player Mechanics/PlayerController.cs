@@ -59,7 +59,7 @@ public class PlayerController : MonoBehaviour
     }
     private void OnTriggerEnter(Collider other)
     {
-        if (other.gameObject.CompareTag("Enemy") && (other.gameObject.layer == LayerMask.NameToLayer("Default") || other.gameObject.layer == LayerMask.NameToLayer("Hitbox")) && !isEnemyDetected && enemyTransform == null)
+        if (other.gameObject.CompareTag("Enemy") && other.gameObject.layer == LayerMask.NameToLayer("Default") && !isEnemyDetected && enemyTransform == null)
         {
             enemyTransform = other.gameObject.GetComponent<Transform>();
             isEnemyDetected = true;
@@ -266,27 +266,42 @@ public class PlayerController : MonoBehaviour
     #region Hurt
     public void DamagePlayer(int damage, Func<IEnumerator> knockback, Vector3 position)
     {
+        // Defensive: ensure playerData exists
+        if (playerData == null)
+        {
+            Debug.LogWarning($"[{nameof(PlayerController)}] DamagePlayer called but playerData is null on '{gameObject.name}'. Aborting damage.");
+            return;
+        }
+
         Vector3 directionToEnemy = position - transform.position;
-
         float angle = Vector3.Angle(transform.forward, directionToEnemy);
+        const float thresholdAngle = 90f;
 
-        float thresholdAngle = 90f;
+        // Parry handling (safe calls)
         if (angle < thresholdAngle && playerState == PlayerState.Parry)
         {
-            Animator.SetTrigger("ParrySuccess");
+            Animator?.SetTrigger("ParrySuccess");
             canParry = false;
-            ParrySuccessParticle.Play();
-            if(knockback != null)
-            StartCoroutine(knockback());
+            ParrySuccessParticle?.Play();
+
+            if (knockback != null)
+                StartCoroutine(knockback());
+
             StartCoroutine(ResetParry());
+            return;
         }
-        else
+
+        // Apply damage safely
+        playerData.playerHealth -= damage;
+
+        if (isAlive && !(playerState == PlayerState.SkillAttack ||
+                        playerState == PlayerState.Dash ||
+                        playerState == PlayerState.Attack1 ||
+                        playerState == PlayerState.Attack2 ||
+                        playerState == PlayerState.Attack3))
         {
-            playerData.playerHealth -= damage;
-            if (isAlive && !(playerState == PlayerState.SkillAttack || playerState == PlayerState.Dash || playerState == PlayerState.Attack1 || playerState == PlayerState.Attack2 || playerState == PlayerState.Attack3))
-            {
-                Animator.SetTrigger("Hurt");
-            }
+            Animator?.SetTrigger("Hurt");
+            HurtParticle?.Play();
         }
     }
     #endregion

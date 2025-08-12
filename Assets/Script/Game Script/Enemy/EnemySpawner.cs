@@ -13,7 +13,7 @@ public class EnemySpawner : MonoBehaviour
     public Transform[] waypoints;
     private int enemyCount = 0;
     public int maxEnemyCount = 10;
-    public float spawnTime = 0.5f;
+    public float spawnTime = 1f;
     private bool spawnTriggered = false;
     private CameraFollow cameraFollow;
     private GameProgression gameProgression;
@@ -74,18 +74,18 @@ public class EnemySpawner : MonoBehaviour
     {
         while (enemyCount < maxEnemyCount)
         {
-            if (gameProgression != null)
+            if (gameProgression != null && enemyPrefab.Length > 0)
             {
                 float spawnChance = (float)gameProgression.EnemyTotalSpawnCount / gameProgression.EnemyTotalCount;
                 float randomValue = Random.value;
 
                 GameObject enemyToSpawn;
 
-                if (randomValue < 0.5f * spawnChance)
+                if (enemyPrefab.Length >= 3 && randomValue < 0.5f * spawnChance)
                 {
                     enemyToSpawn = enemyPrefab[2]; // Medium enemy
                 }
-                else if (randomValue < spawnChance)
+                else if (enemyPrefab.Length >= 2 && randomValue < spawnChance)
                 {
                     enemyToSpawn = enemyPrefab[1]; // Normal enemy
                 }
@@ -103,7 +103,6 @@ public class EnemySpawner : MonoBehaviour
                     
                     if (enemyController != null && waypoints != null)
                     {
-                        // Only assign waypoints up to the enemy's waypoints array capacity
                         int minLength = Mathf.Min(waypoints.Length, enemyController.waypoints.Length);
                         for (int i = 0; i < minLength; i++)
                         {
@@ -122,7 +121,6 @@ public class EnemySpawner : MonoBehaviour
                     Debug.LogWarning("EnemySpawner: Could not find valid NavMesh position for enemy spawn");
                 }
             }
-            
             yield return new WaitForSeconds(spawnTime);
         }
     }
@@ -151,7 +149,7 @@ public class EnemySpawner : MonoBehaviour
     private bool IsPositionValidForSpawn(Vector3 position)
     {
         // Check if there are any enemies too close to this position
-        Collider[] nearbyEnemies = Physics.OverlapSphere(position, 2f); // 2f minimum distance between enemies
+        Collider[] nearbyEnemies = Physics.OverlapSphere(position, 1.5f); // 2f minimum distance between enemies
         foreach (Collider col in nearbyEnemies)
         {
             if (col.GetComponent<EnemyController>() != null)

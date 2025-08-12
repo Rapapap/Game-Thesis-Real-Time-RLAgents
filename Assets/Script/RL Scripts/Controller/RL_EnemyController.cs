@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 
@@ -13,7 +14,7 @@ public class RL_EnemyController : MonoBehaviour
     [SerializeField] private BoxCollider attackCollider;
 
     [Header("Movement Configuration")]
-    [SerializeField] public Transform[] waypoints; 
+    [SerializeField] public Transform[] waypoints;
     [SerializeField] private float startWaitTime = 4f;
 
     [Header("Component References")]
@@ -27,11 +28,11 @@ public class RL_EnemyController : MonoBehaviour
     #region Public Properties & Variables
     public EnemyData enemyData;
     public bool IsInitialized { get; private set; }
-    public CombatState combatState; 
+    public CombatState combatState;
     public HealthState healthState;
     public NormalEnemyActions.FleeState fleeState;
     public int enemyHP;
-    public float attackRange = 2f; 
+    public float attackRange = 2f;
     #endregion
 
     #region Private Variables
@@ -45,8 +46,8 @@ public class RL_EnemyController : MonoBehaviour
 
     private const float ATTACK_DURATION = 1f;
     private const float ATTACK_COOLDOWN = 2f;
-    private const float KNOCKBACK_FORCE = 3f; 
-    private const float KNOCKBACK_DURATION = 0.3f; 
+    private const float KNOCKBACK_FORCE = 3f;
+    private const float KNOCKBACK_DURATION = 0.3f;
     private const float DESTROY_DELAY = 8f;
     #endregion
 
@@ -69,18 +70,25 @@ public class RL_EnemyController : MonoBehaviour
         {
             HandlePlayerEnterCombat(other);
             statDisplay?.ShowEnemyStats();
+            return;
         }
-        
-        // Handle player attack hit detection
-        if (other.gameObject.layer == LayerMask.NameToLayer("Weapon") ||
-           (other.CompareTag("Player") && other.gameObject.layer == LayerMask.NameToLayer("Hitbox")))
+
+        if (ShouldProcessWeaponDamage(other))
         {
-            PlayerController player = other.GetComponentInParent<PlayerController>();
-            if (player != null && player.playerData != null)
+            PlayerController player = GetPlayerFromCollider(other);
+            if (player != null && player.playerData != null && player.canAttack)
             {
                 TakeDamage(player.playerData.playerAttack, player.transform.position);
             }
         }
+    }
+
+    private bool ShouldProcessWeaponDamage(Collider other)
+    {
+        return (other.gameObject.layer == LayerMask.NameToLayer("Weapon")) ||
+                (other.CompareTag("Player") &&
+                other.gameObject.layer == LayerMask.NameToLayer("Hitbox") &&
+                other.gameObject.layer == LayerMask.NameToLayer("Default"));
     }
 
     private void OnTriggerExit(Collider other)
@@ -92,7 +100,7 @@ public class RL_EnemyController : MonoBehaviour
         }
     }
 
-    private void OnEnable()  => RL_Player.OnPlayerDestroyed += HandlePlayerDestroyed;
+    private void OnEnable() => RL_Player.OnPlayerDestroyed += HandlePlayerDestroyed;
     private void OnDisable() => RL_Player.OnPlayerDestroyed -= HandlePlayerDestroyed;
     #endregion
 
@@ -230,8 +238,9 @@ public class RL_EnemyController : MonoBehaviour
     #region Combat System
     private void HandleCombatBehavior()
     {
-        if (fleeState.IsFleeing || knockbackState.IsKnockedBack) return;
-        
+        if (fleeState.IsFleeing || (knockbackState.IsKnockedBack && knockbackState.KnockbackTimer > KNOCKBACK_DURATION * 0.5f))
+            return;
+
         if (CanEngagePlayer())
         {
             RotateTowardsTarget(playerTracking.PlayerPosition);
@@ -243,8 +252,8 @@ public class RL_EnemyController : MonoBehaviour
 
     private bool CanEngagePlayer()
     {
-        return playerTracking.IsInRange && 
-               playerTracking.PlayerTransform != null && 
+        return playerTracking.IsInRange &&
+               playerTracking.PlayerTransform != null &&
                playerTracking.IsPlayerAlive;
     }
 
@@ -252,7 +261,7 @@ public class RL_EnemyController : MonoBehaviour
     {
         combatState.SetAttacking(true);
         combatState.SetCanAttack(true);
-        
+
         // Cache the player reference for better performance
         if (playerController == null)
         {
@@ -269,12 +278,12 @@ public class RL_EnemyController : MonoBehaviour
 
         EnableAttackCollider(true);
         SetAnimationState(attacking: true);
-        
+
         yield return new WaitForSeconds(ATTACK_DURATION);
 
         EnableAttackCollider(false);
         SetAnimationState(attacking: false, idle: true);
-        
+
         yield return new WaitForSeconds(ATTACK_COOLDOWN);
 
         combatState.SetAttacking(false);
@@ -283,7 +292,7 @@ public class RL_EnemyController : MonoBehaviour
 
     private void EnableAttackCollider(bool enabled)
     {
-        if (attackCollider != null) 
+        if (attackCollider != null)
             attackCollider.enabled = enabled;
     }
 
@@ -303,40 +312,133 @@ public class RL_EnemyController : MonoBehaviour
     {
         if (attackCollider == null) return;
 
-        var hitTargets = Physics.OverlapBox(
+        Collider[] hitTargets = Physics.OverlapBox(
             attackCollider.bounds.center,
-            attackCollider.bounds.extents,
+            attackCollider.bounds.extents * 1.2f, 
             attackCollider.transform.rotation,
-            LayerMask.GetMask("Player", "Default")); // Include both layers
+            LayerMask.GetMask("Player", "Default", "Hitbox")); 
+
+        bool playerHit = false;
 
         foreach (var target in hitTargets)
         {
             if (TryDamagePlayer(target))
             {
+                playerHit = true;
                 PlayAttackSound();
-                break; // Only damage once per attack
+                break;
+            }
+        }
+
+        if (!playerHit)
+        {
+            // Try sphere overlap as backup
+            Collider[] sphereTargets = Physics.OverlapSphere(
+                transform.position + transform.forward * (attackRange * 0.7f),
+                attackRange,
+                LayerMask.GetMask("Player", "Default", "Hitbox")
+            );
+
+            foreach (var target in sphereTargets)
+            {
+                if (TryDamagePlayer(target))
+                {
+                    PlayAttackSound();
+                    break;
+                }
             }
         }
     }
 
     private bool TryDamagePlayer(Collider target)
     {
-        // Try multiple approaches to find the player
-        PlayerController player = GetPlayerFromCollider(target);
-        
-        if (player != null && player.isAlive)
+        if (target == null) return false;
+
+        // Try to find an RL_Player first (training player API)
+        RL_Player rlPlayer = target.GetComponent<RL_Player>() 
+                            ?? target.GetComponentInParent<RL_Player>() 
+                            ?? target.GetComponentInChildren<RL_Player>();
+
+        // Try to find a regular PlayerController
+        PlayerController player = target.GetComponent<PlayerController>()
+                                ?? target.GetComponentInParent<PlayerController>()
+                                ?? target.GetComponentInChildren<PlayerController>();
+
+        // If an RL_Player exists, prefer it and call its DamagePlayer signature
+        if (rlPlayer != null)
         {
-            // Use the player's damage method with proper parameters
-            player.DamagePlayer(
-                enemyData.enemyAttack, 
-                () => CreateKnockbackCoroutine(target.transform.position), 
-                transform.position
-            );
+            // Ensure within attack distance (defensive)
+            float distance = Vector3.Distance(transform.position, rlPlayer.transform.position);
+            if (distance > attackRange * 1.2f) return false;
+
+            float dmg = enemyData != null ? enemyData.enemyAttack : 0f;
+
+            // RL_Player expects Func<bool> for knockback callback: start coroutine and return true
+            System.Func<bool> rlKnockback = () =>
+            {
+                StartCoroutine(CreateKnockbackCoroutine(rlPlayer.transform.position));
+                return true;
+            };
+
+            rlPlayer.DamagePlayer(dmg, rlKnockback, transform.position);
             return true;
         }
 
+        // If no RL_Player, handle PlayerController safely
+        if (player != null)
+        {
+            // If this PlayerController is a runtime RL clone without playerData, avoid calling it.
+            if (player.playerData == null)
+            {
+                // Prefer a cached playerController if available and valid
+                if (playerController != null && playerController.playerData != null)
+                {
+                    player = playerController;
+                }
+                else
+                {
+                    // Nothing valid to damage here
+                    return false;
+                }
+            }
+
+            if (!player.isAlive) return false;
+
+            float distance = Vector3.Distance(transform.position, player.transform.position);
+            if (distance > attackRange * 1.2f) return false;
+
+            int dmg = enemyData != null ? Mathf.RoundToInt(enemyData.enemyAttack) : 0;
+
+            // PlayerController expects Func<IEnumerator> knockback coroutine
+            System.Func<IEnumerator> pcKnockback = () => CreateKnockbackCoroutine(player.transform.position);
+
+            player.DamagePlayer(dmg, pcKnockback, transform.position);
+            return true;
+        }
+
+        // No usable player found on the collider
         return false;
     }
+
+    private IEnumerator CreateSafeKnockbackCoroutine(Vector3 playerPosition)
+    {
+        try
+        {
+            // Simple knockback effect on enemy
+            Vector3 knockbackDir = (transform.position - playerPosition).normalized;
+            if (knockbackDir.sqrMagnitude > 0.01f) // Check for valid direction
+            {
+                ApplyKnockback(knockbackDir * 0.5f);
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"Knockback coroutine error: {e.Message}");
+        }
+        
+        yield return new WaitForSeconds(0.2f);
+    }
+
 
     private PlayerController GetPlayerFromCollider(Collider collider)
     {
@@ -359,7 +461,7 @@ public class RL_EnemyController : MonoBehaviour
         }
 
         // Use cached reference as fallback
-        if (playerController != null && 
+        if (playerController != null &&
             (collider.CompareTag("Player") || collider.name.Contains("Player")))
         {
             return playerController;
@@ -380,8 +482,8 @@ public class RL_EnemyController : MonoBehaviour
     #region Flee System
     private bool ShouldFlee()
     {
-        return IsHealthLow() && 
-               playerTracking.IsPlayerAlive && 
+        return IsHealthLow() &&
+               playerTracking.IsPlayerAlive &&
                Vector3.Distance(transform.position, playerTracking.PlayerPosition) <= fleeDetectionRadius;
     }
 
@@ -394,7 +496,7 @@ public class RL_EnemyController : MonoBehaviour
         }
 
         float distanceToPlayer = Vector3.Distance(transform.position, playerTracking.PlayerPosition);
-        
+
         if (ShouldStopFleeing(distanceToPlayer))
         {
             StopFleeing();
@@ -403,8 +505,8 @@ public class RL_EnemyController : MonoBehaviour
 
     private bool ShouldStopFleeing(float distanceToPlayer)
     {
-        return distanceToPlayer >= fleeDistance || 
-               fleeState.FleeTimer >= fleeDuration || 
+        return distanceToPlayer >= fleeDistance ||
+               fleeState.FleeTimer >= fleeDuration ||
                !IsHealthLow();
     }
 
@@ -427,9 +529,8 @@ public class RL_EnemyController : MonoBehaviour
     {
         Vector3 playerDirection = (transform.position - playerTracking.PlayerPosition).normalized;
         Vector3 fleeDirection = playerDirection;
-        
-        // Add randomness to flee direction
-        fleeDirection += Random.insideUnitSphere * 0.3f;
+
+        fleeDirection += UnityEngine.Random.insideUnitSphere * 0.3f;
         fleeDirection.y = 0;
         return fleeDirection.normalized;
     }
@@ -475,13 +576,16 @@ public class RL_EnemyController : MonoBehaviour
 
     public void ApplyKnockback(Vector3 direction)
     {
+        direction.y = 0;
+        direction = direction.normalized;
+
         knockbackState.ApplyKnockback(direction, KNOCKBACK_DURATION);
-        
+
         if (rigidBody != null)
         {
-            rigidBody.AddForce(direction * KNOCKBACK_FORCE, ForceMode.Impulse);
+            rigidBody.AddForce(direction * KNOCKBACK_FORCE, ForceMode.VelocityChange);
         }
-        
+
         StartCoroutine(ExecuteKnockbackMovement(direction));
     }
 
@@ -498,16 +602,19 @@ public class RL_EnemyController : MonoBehaviour
         playerTracking.SetInRange(true);
         waypointNavigation.SetPatrolling(false);
 
-        if (playerController != null)
+        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+        if (playerObj != null)
         {
-            playerTracking.SetPlayerPosition(playerController.transform.position);
-            RotateTowardsTarget(playerTracking.PlayerPosition);
+            playerController = playerObj.GetComponent<PlayerController>();
+            if (playerController != null)
+            {
+                playerTracking.SetPlayerPosition(playerController.transform.position);
+                playerTracking.SetTarget(playerController.transform);
+                RotateTowardsTarget(playerTracking.PlayerPosition);
+            }
         }
-        else if (RL_Player.Instance != null)
-        {
-            playerTracking.SetPlayerPosition(RL_Player.Instance.transform.position);
-            RotateTowardsTarget(playerTracking.PlayerPosition);
-        }
+
+        combatState.SetCanAttack(true);
     }
     #endregion
 
@@ -515,21 +622,45 @@ public class RL_EnemyController : MonoBehaviour
     private IEnumerator ExecuteKnockbackMovement(Vector3 direction)
     {
         float elapsed = 0f;
-        
+        Vector3 initialVelocity = rigidBody.linearVelocity;
+
         while (elapsed < KNOCKBACK_DURATION && knockbackState.IsKnockedBack)
         {
+            float t = elapsed / KNOCKBACK_DURATION;
+            float knockbackInfluence = Mathf.Lerp(1f, 0f, t);
+
+            Vector3 knockbackVelocity = direction * KNOCKBACK_FORCE * knockbackInfluence;
+            Vector3 currentVelocity = rigidBody.linearVelocity;
+            rigidBody.linearVelocity = new Vector3(
+                knockbackVelocity.x,
+                currentVelocity.y,
+                knockbackVelocity.z
+            );
+
             elapsed += Time.deltaTime;
             yield return null;
         }
+
+        knockbackState.ClearKnockback();
     }
 
     private void RotateTowardsTarget(Vector3 targetPosition)
     {
-        if (agent == null) return;
-
-        var directionToTarget = (targetPosition - transform.position).normalized;
-        var targetRotation = Quaternion.LookRotation(directionToTarget);
-        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, agent.rotationSpeed * Time.deltaTime);
+        Vector3 directionToTarget = (targetPosition - transform.position).normalized;
+        directionToTarget.y = 0f; 
+        
+        if (directionToTarget.sqrMagnitude > 0.01f)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(directionToTarget);
+            
+            float rotSpeed = (agent != null) ? agent.rotationSpeed : 120f;
+            
+            transform.rotation = Quaternion.Slerp(
+                transform.rotation, 
+                targetRotation, 
+                rotSpeed * Time.deltaTime
+            );
+        }
     }
     #endregion
 
@@ -563,10 +694,10 @@ public class RL_EnemyController : MonoBehaviour
         healthState.SetDead(true);
         SetAnimationState(dead: true);
         PlayDeathSound();
-        
+
         GetComponent<Collider>().enabled = false;
         healthBar?.gameObject.SetActive(false);
-        
+
         NotifyGameProgression();
         SpawnLoot();
         HandleAgentDeath();
@@ -608,7 +739,7 @@ public class RL_EnemyController : MonoBehaviour
     }
 
     private void NotifyGameProgression() => GameProgression.Instance?.EnemyKill();
-    
+
     // Public getters for ML Agent
     public float GetHealthPercentage() => (float)enemyHP / enemyData.enemyHealth;
     public bool IsHealthLow() => enemyHP <= enemyData.enemyHealth * fleeHealthThreshold;
@@ -618,4 +749,37 @@ public class RL_EnemyController : MonoBehaviour
     public float GetDistanceToCurrentWaypoint() => waypointNavigation.GetDistanceToCurrentWaypoint(transform.position);
     public Vector3 GetWaypointDirection() => waypointNavigation.GetDirectionToCurrentWaypoint(transform.position);
     #endregion
+
+    public class KnockbackState
+    {
+        public bool IsKnockedBack { get; private set; }
+        public float KnockbackTimer { get; private set; }
+        private float knockbackDuration;
+
+        public void ApplyKnockback(Vector3 direction, float duration)
+        {
+            IsKnockedBack = true;
+            knockbackDuration = duration;
+            KnockbackTimer = 0f;
+        }
+
+        public void UpdateKnockback()
+        {
+            if (IsKnockedBack)
+            {
+                KnockbackTimer += Time.deltaTime;
+                if (KnockbackTimer >= knockbackDuration)
+                {
+                    ClearKnockback();
+                }
+            }
+        }
+
+        public void ClearKnockback()
+        {
+            IsKnockedBack = false;
+            KnockbackTimer = 0f;
+        }
+    }
 }
+

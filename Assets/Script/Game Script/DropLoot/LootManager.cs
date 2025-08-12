@@ -24,7 +24,7 @@ public class LootManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("SpawnDataLoot: lootDataPrefab is not assigned", this);
+            return; 
         }
     }
     public void SpawnGearLoot(Transform spawnPoint)
@@ -35,7 +35,7 @@ public class LootManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("SpawnGearLoot: lootGearPrefab is not assigned", this);
+            return;
         }
     }
     public void SpawnHealthLoot(Transform spawnPoint)
@@ -46,7 +46,7 @@ public class LootManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("SpawnHealthLoot: lootHealthPrefab is not assigned", this);
+            return;
         }
     }
 
