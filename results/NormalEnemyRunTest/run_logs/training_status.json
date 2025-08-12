@@ -9,15 +9,42 @@
                 "auxillary_file_paths": [
                     "results\\NormalEnemyRunTest\\NormalEnemy\\NormalEnemy-20547.pt"
                 ]
+            },
+            {
+                "steps": 5499999,
+                "file_path": "results\\NormalEnemyRunTest\\NormalEnemy\\NormalEnemy-5499999.onnx",
+                "reward": null,
+                "creation_time": 1754941522.1545534,
+                "auxillary_file_paths": [
+                    "results\\NormalEnemyRunTest\\NormalEnemy\\NormalEnemy-5499999.pt"
+                ]
+            },
+            {
+                "steps": 5539450,
+                "file_path": "results\\NormalEnemyRunTest\\NormalEnemy\\NormalEnemy-5539450.onnx",
+                "reward": 46.63880983988444,
+                "creation_time": 1754941639.6422594,
+                "auxillary_file_paths": [
+                    "results\\NormalEnemyRunTest\\NormalEnemy\\NormalEnemy-5539450.pt"
+                ]
+            },
+            {
+                "steps": 5572936,
+                "file_path": "results\\NormalEnemyRunTest\\NormalEnemy\\NormalEnemy-5572936.onnx",
+                "reward": 40.075168430805206,
+                "creation_time": 1754941816.3420026,
+                "auxillary_file_paths": [
+                    "results\\NormalEnemyRunTest\\NormalEnemy\\NormalEnemy-5572936.pt"
+                ]
             }
         ],
         "final_checkpoint": {
-            "steps": 20547,
+            "steps": 5572936,
             "file_path": "results\\NormalEnemyRunTest\\NormalEnemy.onnx",
-            "reward": null,
-            "creation_time": 1754895976.0068927,
+            "reward": 40.075168430805206,
+            "creation_time": 1754941816.3420026,
             "auxillary_file_paths": [
-                "results\\NormalEnemyRunTest\\NormalEnemy\\NormalEnemy-20547.pt"
+                "results\\NormalEnemyRunTest\\NormalEnemy\\NormalEnemy-5572936.pt"
             ]
         }
     },

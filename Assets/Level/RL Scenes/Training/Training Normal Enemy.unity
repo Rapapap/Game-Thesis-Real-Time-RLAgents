@@ -6209,7 +6209,7 @@ MonoBehaviour:
     corner2: {fileID: 47029519}
     corner3: {fileID: 47029518}
     corner4: {fileID: 47029517}
-    maxTargets: 1
+    maxTargets: 0
     spawnParent: {fileID: 0}
     customSpawnPoints:
     - {fileID: 0}

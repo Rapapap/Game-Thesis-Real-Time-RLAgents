@@ -59,7 +59,7 @@ public class PlayerController : MonoBehaviour
     }
     private void OnTriggerEnter(Collider other)
     {
-        if (other.gameObject.CompareTag("Enemy") && other.gameObject.layer == LayerMask.NameToLayer("Default") && !isEnemyDetected && enemyTransform == null)
+        if (other.gameObject.CompareTag("Enemy") && (other.gameObject.layer == LayerMask.NameToLayer("Default") || other.gameObject.layer == LayerMask.NameToLayer("Hitbox")) && !isEnemyDetected && enemyTransform == null)
         {
             enemyTransform = other.gameObject.GetComponent<Transform>();
             isEnemyDetected = true;

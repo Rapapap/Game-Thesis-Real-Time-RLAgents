@@ -1,7 +1,7 @@
 public class PlayerData
 {
     public int playerHealth;
-    public int playerAttack;
+    public int playerAttack; 
     public int playerDefense;
     public float playerSpeed = 6.5f;
     public float playerDashSpeed;

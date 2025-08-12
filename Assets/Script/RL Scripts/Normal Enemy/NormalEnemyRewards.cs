@@ -21,11 +21,11 @@ public class NormalEnemyRewards : MonoBehaviour
     public float ObstaclePunishment = -0.20f;
     public float NoMovementPunishment = -0.010f;
     public float ApproachPlayerReward = +0.01f;
-    public float ChaseStepReward = +0.010f;
-    public float DoesntChasePlayerPunishment = -0.05f;
-    public float FailApproachPlayerPunishment = -0.05f;
-    public float DoesntAttackInstantlyPunishment = -0.1f;
-    public float AttackMissedPunishment = -0.1f;
+    public float ChaseStepReward = +0.020f;
+    public float DoesntChasePlayerPunishment = -0.10f;
+    public float FailApproachPlayerPunishment = -0.10f;
+    public float DoesntAttackInstantlyPunishment = -0.10f;
+    public float AttackMissedPunishment = -0.10f;
 
     #endregion
 

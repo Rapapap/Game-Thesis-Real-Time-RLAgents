@@ -748,7 +748,6 @@ public class EnhancedMovementController
         agentTransform = transform;
         this.moveSpeed = moveSpeed * 0.8f; 
         this.rotationSpeed = rotationSpeed;
-        maxVelocity = moveSpeed;
     }
 
     public void Reset()
@@ -843,15 +842,12 @@ public class EnhancedMovementController
     }
 }
 
-[System.Serializable]
 public struct ObstacleDistances
 {
     public float forward;
     public float right;
     public float left;
     public float back;
-
-    // diagonals
     public float forwardRight;
     public float forwardLeft;
     public float backRight;
