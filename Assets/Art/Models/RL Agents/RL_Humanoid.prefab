@@ -122,8 +122,8 @@ Transform:
   m_GameObject: {fileID: 2780053255438254653}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.0038, y: -0.00241, z: 0.0101}
-  m_LocalScale: {x: 1.9253, y: 1.1388217, z: 1.1963558}
+  m_LocalPosition: {x: 0.0038, y: 0.0016, z: 0.0101}
+  m_LocalScale: {x: 1.9253, y: 1.0323246, z: 1.1963558}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6033344054375008523}
@@ -1063,7 +1063,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 102d1c754748ce348ab7360467b3a778, type: 3}
       propertyPath: m_TagString
-      value: Untagged
+      value: Enemy
       objectReference: {fileID: 0}
     - target: {fileID: 1508779907985176101, guid: 102d1c754748ce348ab7360467b3a778, type: 3}
       propertyPath: m_Layer
@@ -1472,7 +1472,7 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 5022602860645237092, guid: dec2885df3df15248a41fc80ba416814, type: 3}
+  m_Model: {fileID: 5022602860645237092, guid: f84d436dac25a4f40b205f66e07841e0, type: 3}
   m_InferenceDevice: 0
   m_BehaviorType: 0
   m_BehaviorName: NormalEnemy
@@ -1501,7 +1501,7 @@ MonoBehaviour:
   rewardConfig: {fileID: 7144006557691622317}
   animator: {fileID: 2030732665317957927}
   agentRigidbody: {fileID: 8622400069896116343}
-  moveSpeed: 7
+  moveSpeed: 5
   rotationSpeed: 180
   showDebugInfo: 0
   debugTextOffset: {x: 10, y: 120}

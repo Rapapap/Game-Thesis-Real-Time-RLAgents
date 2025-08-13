@@ -3,7 +3,7 @@ public class PlayerData
     public int playerHealth;
     public int playerAttack; 
     public int playerDefense;
-    public float playerSpeed = 6.5f;
+    public float playerSpeed = 8f;
     public float playerDashSpeed;
     public float playerDashTime;
     public float playerCriticalHit = 0.1f;

@@ -53,7 +53,14 @@ public class LevelSelect : MonoBehaviour
     public void LoadReinforcementLearningGame()
     {
         // Load scene dengan nama "RL"
-        SceneNavigationManager.Instance.NextScene = "Test Reinforcement Learning";
+        SceneNavigationManager.Instance.NextScene = "Reinforcement Learning Stage";
+        StartCoroutine(LoadGameTransition());
+    }
+
+    public void LoadSkipStagaeReinforcementLearningGame()
+    {
+        // Load scene dengan nama "RL"
+        SceneNavigationManager.Instance.NextScene = "[Skip Stage} RL Stage";
         StartCoroutine(LoadGameTransition());
     }
 

@@ -33,13 +33,11 @@ public class NormalEnemyRewards : MonoBehaviour
     public void AddKillPlayerReward(Agent agent)
     {
         agent.AddReward(KillPlayerReward);
-        Debug.Log($"[REWARD] {agent.name} killed player: +{KillPlayerReward}");
     }
 
     public void AddDeathPunishment(Agent agent)
     {
         agent.AddReward(DiedByPlayerPunishment);
-        Debug.Log($"[PUNISHMENT] {agent.name} died: {DiedByPlayerPunishment}");
     }
     #endregion
 

@@ -714,29 +714,30 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7a18b0845d3805b4b983ce2c974e6200, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerState: 0
-  Gear: 0
-  Data: 0
   Animator: {fileID: 8625117619887489572}
-  DashParticle: {fileID: 3251072668014186626, guid: ccb786ced3ed3f2428fdd63a6ce4db51, type: 3}
-  DeathParticle: {fileID: 361908884663430434}
-  HurtParticle: {fileID: 756378077354520267}
-  ParrySuccessParticle: {fileID: 290047812991929575}
+  smoothInputSpeed: 0.1
+  gravityValue: -9.81
+  currentInputVector: {x: 0, y: 0, z: 0}
+  velocity: 0
+  AssistRange: 2.5
+  dashCount: 50
+  MaxHealth: 0
+  SkillEnergy: 2
   canAttack: 1
   canParry: 1
   CanSkillAttack: 1
   canDash: 1
-  ParticleSpawnPoint: {fileID: 6351996343411541084}
-  velocity: 0
-  smoothInputSpeed: 0.1
-  currentInputVector: {x: 0, y: 0, z: 0}
+  playerState: 0
+  Gear: 0
+  Data: 0
   isAlive: 1
-  AssistRange: 2.5
-  dashCount: 50
-  MaxHealth: 0
   HasTeleported: 0
   KILLPLAYER: 0
-  SkillEnergy: 2
+  ParticleSpawnPoint: {fileID: 6351996343411541084}
+  DashParticle: {fileID: 3251072668014186626, guid: ccb786ced3ed3f2428fdd63a6ce4db51, type: 3}
+  DeathParticle: {fileID: 361908884663430434}
+  HurtParticle: {fileID: 756378077354520267}
+  ParrySuccessParticle: {fileID: 290047812991929575}
 --- !u!95 &8625117619887489572
 Animator:
   serializedVersion: 7

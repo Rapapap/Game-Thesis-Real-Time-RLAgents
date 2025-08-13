@@ -718,7 +718,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2772531221632732597, guid: a1d3d60bc3f9f2747acaa89d2d26e175, type: 3}
       propertyPath: m_Text
-      value: "Code Crusader: Anti-Virus \nAssault Version 1.8.3"
+      value: "Code Crusader: Anti-Virus \nAssault Version 2.0"
       objectReference: {fileID: 0}
     - target: {fileID: 3142820140456032778, guid: a1d3d60bc3f9f2747acaa89d2d26e175, type: 3}
       propertyPath: m_AnchorMax.x

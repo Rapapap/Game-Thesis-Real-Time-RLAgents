@@ -92,12 +92,12 @@ public class NormalEnemyAgent : Agent
         initialPosition = transform.position;
         lastPosition = transform.position;
         lastPositionForChaseReward = transform.position;
-        ResetAgentState();
+        //ResetAgentState();
         rl_EnemyController.InitializeHealthBar();
         isInitialized = true;
     }
 
-    public override void OnEpisodeBegin()
+    /*public override void OnEpisodeBegin()
     {
         if (!isInitialized)
         {
@@ -126,7 +126,7 @@ public class NormalEnemyAgent : Agent
             agentRigidbody.linearVelocity = Vector3.zero;
             agentRigidbody.angularVelocity = Vector3.zero;
         }
-    }
+    }*/
 
     public override void CollectObservations(VectorSensor sensor)
     {
@@ -219,7 +219,7 @@ public class NormalEnemyAgent : Agent
         private bool IsDebugEnabled => false;
     #endif
 
-    public override void Heuristic(in ActionBuffers actionsOut)
+    /*public override void Heuristic(in ActionBuffers actionsOut)
     {
         var continuousActions = actionsOut.ContinuousActions;
         var discreteActions = actionsOut.DiscreteActions;
@@ -228,7 +228,7 @@ public class NormalEnemyAgent : Agent
         continuousActions[1] = Input.GetAxis("Horizontal");
         continuousActions[2] = GetRotationInputHeuristic();
         discreteActions[0] = Input.GetKey(KeyCode.Space) ? 1 : 0;
-    }
+    }*/
     #endregion
 
     #region Initialization & Reset Helpers
@@ -711,6 +711,7 @@ public class NormalEnemyAgent : Agent
         currentState = "Dead";
         currentAction = "Dead";
         isCurrentlyChasing = false;
+        animator.SetBool("isDead", true);
 
         agentRigidbody.linearVelocity = Vector3.zero;
         agentRigidbody.angularVelocity = Vector3.zero;
