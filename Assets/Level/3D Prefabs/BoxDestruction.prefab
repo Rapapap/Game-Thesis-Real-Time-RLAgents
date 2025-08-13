@@ -383,7 +383,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   lootManager: {fileID: 0}
-  hp: 3
+  hp: 2
 --- !u!208 &6918907514010909476
 NavMeshObstacle:
   m_ObjectHideFlags: 0

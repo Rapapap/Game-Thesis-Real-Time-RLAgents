@@ -4,6 +4,7 @@ using Unity.MLAgents.Sensors;
 using Unity.MLAgents.Actuators;
 using System.Linq;
 using static NormalEnemyActions;
+using System.Collections;
 
 [RequireComponent(typeof(Rigidbody), typeof(RayPerceptionSensorComponent3D), typeof(RL_EnemyController))]
 public class NormalEnemyAgent : Agent
@@ -27,7 +28,7 @@ public class NormalEnemyAgent : Agent
     
     [Header("Runtime Behavior")]
     [Tooltip("Enable to allow episode reset/respawn in non-training scenarios")]
-    [SerializeField] private bool enableEpisodeReset = false;
+    [SerializeField] public bool enableEpisodeReset = false;
     #endregion
 
     #region Public Properties
@@ -711,15 +712,29 @@ public class NormalEnemyAgent : Agent
         currentState = "Dead";
         currentAction = "Dead";
         isCurrentlyChasing = false;
-        animator.SetBool("isDead", true);
+        animator?.SetBool("isDead", true);
 
         agentRigidbody.linearVelocity = Vector3.zero;
         agentRigidbody.angularVelocity = Vector3.zero;
 
-        // Only end episode if in training mode or episode reset is enabled
         if (TrainingActive || enableEpisodeReset)
         {
             EndEpisode();
+        }
+        else
+        {
+            GetComponent<Collider>().enabled = false;
+            StartCoroutine(DestroyGameObjectAfterDelay());
+        }
+    }
+
+    private IEnumerator DestroyGameObjectAfterDelay()
+    {
+        yield return new WaitForSeconds(RL_EnemyController.DESTROY_DELAY);
+
+        if (gameObject != null && !gameObject.Equals(null))
+        {
+            Destroy(gameObject);
         }
     }
 
@@ -795,7 +810,6 @@ public class EnhancedMovementController
     private readonly float moveSpeed;
     private readonly float rotationSpeed;
     private readonly float maxVelocity;
-    private readonly float movementSmoothness = 10f; // New smoothness parameter
 
     public EnhancedMovementController(Rigidbody rigidbody, Transform transform, float moveSpeed, float rotationSpeed)
     {
@@ -803,7 +817,7 @@ public class EnhancedMovementController
         agentTransform = transform;
         this.moveSpeed = moveSpeed;
         this.rotationSpeed = rotationSpeed;
-        this.maxVelocity = moveSpeed * 1.5f;
+        maxVelocity = moveSpeed * 1.5f;
     }
     
     public void Reset()

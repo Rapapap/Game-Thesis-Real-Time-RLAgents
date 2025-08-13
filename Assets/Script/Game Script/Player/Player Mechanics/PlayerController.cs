@@ -493,13 +493,6 @@ public class PlayerController : MonoBehaviour
         Animator.SetTrigger("Death");
         Destroy(gameObject, 6);
     }
-
-    private IEnumerator ReloadLevel()
-    {
-        yield return new WaitForSeconds(5f);
-        AudioManager.instance.ResetPlayerController();
-        SceneManager.LoadScene("NewLevelOne");
-    }
     #endregion
 
     #region Resource Management

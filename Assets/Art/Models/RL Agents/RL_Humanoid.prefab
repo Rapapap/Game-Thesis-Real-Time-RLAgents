@@ -1472,9 +1472,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 5022602860645237092, guid: f84d436dac25a4f40b205f66e07841e0, type: 3}
+  m_Model: {fileID: 5022602860645237092, guid: dec2885df3df15248a41fc80ba416814, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: NormalEnemy
   TeamId: 0
   m_UseChildSensors: 1
@@ -1501,7 +1501,7 @@ MonoBehaviour:
   rewardConfig: {fileID: 7144006557691622317}
   animator: {fileID: 2030732665317957927}
   agentRigidbody: {fileID: 8622400069896116343}
-  moveSpeed: 5
+  moveSpeed: 6
   rotationSpeed: 180
   showDebugInfo: 0
   debugTextOffset: {x: 10, y: 120}

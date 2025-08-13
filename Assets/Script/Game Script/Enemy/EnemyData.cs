@@ -36,8 +36,8 @@ public class CreepEnemyData : EnemyData
         {
             if (_instance == null)
             {
-                _instance = ScriptableObject.CreateInstance<CreepEnemyData>();
-                _instance.enemyHealth = 100;
+                _instance = CreateInstance<CreepEnemyData>();
+                _instance.enemyHealth = 125;
                 _instance.enemyAttack = 4;
                 _instance.enemySpeed = 9.0f;
                 _instance.EnemyType = EnemyType.Creep;
@@ -56,7 +56,7 @@ public class Medium1EnemyData : EnemyData
         {
             if (_instance == null)
             {
-                _instance = ScriptableObject.CreateInstance<Medium1EnemyData>();
+                _instance = CreateInstance<Medium1EnemyData>();
                 _instance.enemyHealth = 150;
                 _instance.enemyAttack = 6;
                 _instance.enemySpeed = 7.0f;
@@ -76,7 +76,7 @@ public class Medium2EnemyData : EnemyData
         {
             if (_instance == null)
             {
-                _instance = ScriptableObject.CreateInstance<Medium2EnemyData>();
+                _instance = CreateInstance<Medium2EnemyData>();
                 _instance.enemyHealth = 200;
                 _instance.enemyAttack = 8;
                 _instance.enemySpeed = 5.0f;
@@ -96,7 +96,7 @@ public class BossEnemyData : EnemyData
         {
             if (_instance == null)
             {
-                _instance = ScriptableObject.CreateInstance<BossEnemyData>();
+                _instance = CreateInstance<BossEnemyData>();
                 _instance.enemyHealth = 1000;
                 _instance.enemyAttack = 15;
                 _instance.enemySpeed = 4.0f;

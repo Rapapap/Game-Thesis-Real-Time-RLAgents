@@ -42,13 +42,14 @@ public class RL_EnemyController : MonoBehaviour
     private Rigidbody rigidBody;
     private KnockbackState knockbackState;
     private NormalEnemyAgent agent;
-    private PlayerController playerController; // Cache player reference
+    private PlayerController playerController; 
 
     private const float ATTACK_DURATION = 1f;
     private const float ATTACK_COOLDOWN = 2f;
-    private const float KNOCKBACK_FORCE = 3f;
-    private const float KNOCKBACK_DURATION = 0.3f;
-    private const float DESTROY_DELAY = 8f;
+    private const float KNOCKBACK_FORCE = 1f;
+    private const float KNOCKBACK_DURATION = 0.2f;
+    private float lastDamageTime;
+    public const float DESTROY_DELAY = 2.5f;
     #endregion
 
     #region Unity Lifecycle
@@ -73,14 +74,51 @@ public class RL_EnemyController : MonoBehaviour
             return;
         }
 
+        // Fixed weapon damage detection logic
         if (ShouldProcessWeaponDamage(other))
         {
-            PlayerController player = GetPlayerFromCollider(other);
-            if (player != null && player.playerData != null && player.canAttack)
+            // Get player reference from the weapon/hitbox collider
+            PlayerController player = GetPlayerFromWeaponCollider(other);
+            
+            if (player != null && player.canAttack && !healthState.IsDead)
             {
-                TakeDamage(player.playerData.playerAttack, player.transform.position);
+                int damage = player.weaponData?.weaponAttack ?? player.playerData?.playerAttack ?? 0;
+                TakeDamage(damage, player.transform.position);
             }
         }
+    }
+
+    private PlayerController GetPlayerFromWeaponCollider(Collider weaponCollider)
+    {
+        // First check if this collider itself has a PlayerController
+        PlayerController player = weaponCollider.GetComponent<PlayerController>();
+        if (player != null) return player;
+
+        // Check parent objects (weapon is usually child of player)
+        Transform current = weaponCollider.transform;
+        while (current.parent != null)
+        {
+            current = current.parent;
+            player = current.GetComponent<PlayerController>();
+            if (player != null) return player;
+        }
+
+        // Check for RL_Player component and get its PlayerController
+        RL_Player rlPlayer = weaponCollider.GetComponentInParent<RL_Player>();
+        if (rlPlayer != null)
+        {
+            player = rlPlayer.GetComponent<PlayerController>();
+            if (player != null) return player;
+        }
+
+        // Fallback to cached reference if we can verify this is a player weapon
+        if (playerController != null && 
+            (weaponCollider.name.Contains("Weapon") || weaponCollider.CompareTag("Player")))
+        {
+            return playerController;
+        }
+
+        return null;
     }
 
     private bool ShouldProcessWeaponDamage(Collider other)
@@ -89,7 +127,7 @@ public class RL_EnemyController : MonoBehaviour
                 (other.CompareTag("Player") &&
                 other.gameObject.layer == LayerMask.NameToLayer("Hitbox") &&
                 other.gameObject.layer == LayerMask.NameToLayer("Default"));
-    }
+    }   
 
     private void OnTriggerExit(Collider other)
     {
@@ -112,6 +150,7 @@ public class RL_EnemyController : MonoBehaviour
         InitializeComponents();
         InitializeStates();
         SetupEnemyData();
+        SetupCollisionDetection();
         CachePlayerReference();
         SetAnimationState(idle: true);
         IsInitialized = true;
@@ -139,6 +178,41 @@ public class RL_EnemyController : MonoBehaviour
         enemyData ??= GetEnemyDataByType() ?? CreateDefaultEnemyData();
         enemyHP = enemyData.enemyHealth;
         InitializeHealthBar();
+    }
+
+    private void SetupCollisionDetection()
+    {
+        // Ensure the main collider is set as trigger for weapon detection
+        Collider mainCollider = GetComponent<Collider>();
+        if (mainCollider != null && !mainCollider.isTrigger)
+        {
+            // Add a separate trigger collider for weapon detection if main collider isn't trigger
+            GameObject triggerObj = new GameObject("WeaponDetectionTrigger");
+            triggerObj.transform.SetParent(transform);
+            triggerObj.transform.localPosition = Vector3.zero;
+            triggerObj.transform.localScale = Vector3.one;
+            
+            // Copy the main collider properties
+            if (mainCollider is BoxCollider boxCol)
+            {
+                BoxCollider triggerBox = triggerObj.AddComponent<BoxCollider>();
+                triggerBox.size = boxCol.size * 1.1f; // Slightly larger for better detection
+                triggerBox.center = boxCol.center;
+                triggerBox.isTrigger = true;
+            }
+            else if (mainCollider is CapsuleCollider capCol)
+            {
+                CapsuleCollider triggerCap = triggerObj.AddComponent<CapsuleCollider>();
+                triggerCap.radius = capCol.radius * 1.1f;
+                triggerCap.height = capCol.height;
+                triggerCap.center = capCol.center;
+                triggerCap.isTrigger = true;
+            }
+            
+            // Add this script to the trigger object to forward collision events
+            WeaponDetectionForwarder forwarder = triggerObj.AddComponent<WeaponDetectionForwarder>();
+            forwarder.enemyController = this;
+        }
     }
 
     private void CachePlayerReference()
@@ -541,8 +615,15 @@ public class RL_EnemyController : MonoBehaviour
     {
         if (healthState.IsDead) return;
 
+        // Prevent multiple hits from the same attack frame
+        if (Time.time - lastDamageTime < 0.1f) return;
+        lastDamageTime = Time.time;
+
         enemyHP = Mathf.Max(enemyHP - damageAmount, 0);
+        
+        // Notify the ML Agent about damage taken
         GetComponent<NormalEnemyAgent>()?.HandleDamage();
+        
         UpdateHealthBar();
 
         if (enemyHP > 0)
@@ -554,7 +635,6 @@ public class RL_EnemyController : MonoBehaviour
             HandleDeath();
         }
     }
-
     private void HandleDamageReaction(Vector3 attackerPosition)
     {
         PlayHitAnimation();
@@ -689,7 +769,7 @@ public class RL_EnemyController : MonoBehaviour
     #endregion
 
     #region Death & Loot
-    private void HandleDeath()
+    public void HandleDeath()
     {
         healthState.SetDead(true);
         SetAnimationState(dead: true);
@@ -710,9 +790,19 @@ public class RL_EnemyController : MonoBehaviour
         {
             agent.HandleEnemyDeath();
         }
-        else
+
+        // Always ensure destruction happens after delay, regardless of training mode
+        StartCoroutine(DestroyAfterDelay());
+    }
+
+    private IEnumerator DestroyAfterDelay()
+    {
+        yield return new WaitForSeconds(DESTROY_DELAY);
+        
+        // Double-check if object still exists before destroying
+        if (gameObject != null)
         {
-            Destroy(gameObject, DESTROY_DELAY);
+            Destroy(gameObject);
         }
     }
 
@@ -740,7 +830,6 @@ public class RL_EnemyController : MonoBehaviour
 
     private void NotifyGameProgression() => GameProgression.Instance?.EnemyKill();
 
-    // Public getters for ML Agent
     public float GetHealthPercentage() => (float)enemyHP / enemyData.enemyHealth;
     public bool IsHealthLow() => enemyHP <= enemyData.enemyHealth * fleeHealthThreshold;
     public bool IsFleeing() => fleeState.IsFleeing;
@@ -749,6 +838,46 @@ public class RL_EnemyController : MonoBehaviour
     public float GetDistanceToCurrentWaypoint() => waypointNavigation.GetDistanceToCurrentWaypoint(transform.position);
     public Vector3 GetWaypointDirection() => waypointNavigation.GetDirectionToCurrentWaypoint(transform.position);
     #endregion
+
+    public class WeaponDetectionForwarder : MonoBehaviour
+    {
+        public RL_EnemyController enemyController;
+        
+        private void OnTriggerEnter(Collider other)
+        {
+            if (enemyController != null)
+            {
+                // Forward weapon collision to the main enemy controller
+                if (IsWeaponCollider(other))
+                {
+                    PlayerController player = GetPlayerFromCollider(other);
+                    if (player != null && player.canAttack && !enemyController.healthState.IsDead)
+                    {
+                        int damage = player.weaponData?.weaponAttack ?? player.playerData?.playerAttack ?? 0;
+                        enemyController.TakeDamage(damage, player.transform.position);
+                    }
+                }
+            }
+        }
+        
+        private bool IsWeaponCollider(Collider other)
+        {
+            return (other.gameObject.layer == LayerMask.NameToLayer("Weapon")) ||
+                (other.CompareTag("Player") && other.gameObject.layer == LayerMask.NameToLayer("Hitbox")) ||
+                other.name.Contains("Weapon") || other.name.Contains("Hitbox");
+        }
+        
+        private PlayerController GetPlayerFromCollider(Collider collider)
+        {
+            PlayerController player = collider.GetComponentInParent<PlayerController>();
+            if (player != null) return player;
+            
+            RL_Player rlPlayer = collider.GetComponentInParent<RL_Player>();
+            if (rlPlayer != null) return rlPlayer.GetComponent<PlayerController>();
+            
+            return null;
+        }
+    }
 
     public class KnockbackState
     {
