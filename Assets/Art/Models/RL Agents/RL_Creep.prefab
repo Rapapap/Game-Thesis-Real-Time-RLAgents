@@ -1742,7 +1742,7 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 5022602860645237092, guid: 1ef286edc85eb5741b76bcff8e76755c, type: 3}
+  m_Model: {fileID: 5022602860645237092, guid: dec2885df3df15248a41fc80ba416814, type: 3}
   m_InferenceDevice: 0
   m_BehaviorType: 0
   m_BehaviorName: NormalEnemy
@@ -1773,11 +1773,11 @@ MonoBehaviour:
   agentRigidbody: {fileID: 3895491713408048707}
   moveSpeed: 9
   rotationSpeed: 180
-  showDebugInfo: 1
+  showDebugInfo: 0
   debugTextOffset: {x: 10, y: 10}
   debugTextColor: {r: 0.78518534, g: 0, b: 1, a: 1}
   debugFontSize: 14
-  enableEpisodeReset: 1
+  enableEpisodeReset: 0
 --- !u!114 &8894129208516749644
 MonoBehaviour:
   m_ObjectHideFlags: 0

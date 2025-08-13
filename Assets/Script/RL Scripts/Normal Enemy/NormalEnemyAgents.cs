@@ -202,12 +202,22 @@ public class NormalEnemyAgent : Agent
     {
         if (!isInitialized || rl_EnemyController == null || IsDead || !isActiveAndEnabled) return;
 
-        debugDisplay.IncrementSteps();
+        if (IsDebugEnabled)
+        {
+            debugDisplay.IncrementSteps();
+        }
+        
         ProcessActions(actions);
         UpdateBehaviorAndRewards();
         CheckStuckState();
         CheckEpisodeEnd();
     }
+
+    #if UNITY_EDITOR || DEBUG_BUILD
+    private bool IsDebugEnabled => showDebugInfo;
+    #else
+        private bool IsDebugEnabled => false;
+    #endif
 
     public override void Heuristic(in ActionBuffers actionsOut)
     {
@@ -631,7 +641,11 @@ public class NormalEnemyAgent : Agent
 
         obstacleDetection.UpdateObstacleDetection();
         ProcessRewards(Time.deltaTime);
-        debugDisplay.UpdateCumulativeReward(GetCumulativeReward());
+        
+        if (showDebugInfo)
+        {
+            debugDisplay.UpdateCumulativeReward(GetCumulativeReward());
+        }
     }
 
     private void ProcessRewards(float deltaTime)
