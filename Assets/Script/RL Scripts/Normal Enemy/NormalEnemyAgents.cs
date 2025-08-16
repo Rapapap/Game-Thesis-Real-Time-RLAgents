@@ -370,7 +370,7 @@ public class NormalEnemyAgent : Agent
 
     private void ResetTrainingArena()
     {
-        FindFirstObjectByType<RL_TrainingTargetSpawner>()?.ResetArena();
+        FindFirstObjectByType<RL_TrainingPlayerSpawner>()?.ResetArena();
     }
 
     private void CheckEpisodeEnd()

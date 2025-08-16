@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class RL_TrainingTargetSpawner : MonoBehaviour
+public class RL_TrainingPlayerSpawner : MonoBehaviour
 {
     [System.Serializable]
     public struct ArenaConfiguration
@@ -358,15 +358,15 @@ public class RL_TrainingTargetSpawner : MonoBehaviour
 
     private void ConfigureTarget(GameObject target)
     {
-        var playerComponent = target.GetComponent<RL_Player>();
+        var playerComponent = target.GetComponent<RL_PlayerController>();
         if (playerComponent != null)
         {
             playerComponent.isRL_TrainingTarget = true;
         }
 
-        var lifeTracker = target.GetComponent<RL_TrainingTarget>();
+        var lifeTracker = target.GetComponent<RL_TrainingPlayer>();
         if (lifeTracker == null)
-            lifeTracker = target.AddComponent<RL_TrainingTarget>();
+            lifeTracker = target.AddComponent<RL_TrainingPlayer>();
         lifeTracker.Initialize(this);
     }
 
@@ -462,10 +462,10 @@ public class RL_TrainingTargetSpawner : MonoBehaviour
 
         try
         {
-            var targetComponent = target.GetComponent<RL_TrainingTarget>();
+            var targetComponent = target.GetComponent<RL_TrainingPlayer>();
             if (targetComponent != null) targetComponent.enabled = false;
 
-            var playerComponent = target.GetComponent<RL_Player>();
+            var playerComponent = target.GetComponent<RL_PlayerController>();
             if (playerComponent != null) playerComponent.enabled = false;
 
             if (Application.isPlaying)

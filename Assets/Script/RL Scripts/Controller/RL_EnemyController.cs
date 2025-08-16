@@ -104,7 +104,7 @@ public class RL_EnemyController : MonoBehaviour
         }
 
         // Check for RL_Player component and get its PlayerController
-        RL_Player rlPlayer = weaponCollider.GetComponentInParent<RL_Player>();
+        RL_PlayerController rlPlayer = weaponCollider.GetComponentInParent<RL_PlayerController>();
         if (rlPlayer != null)
         {
             player = rlPlayer.GetComponent<PlayerController>();
@@ -138,8 +138,8 @@ public class RL_EnemyController : MonoBehaviour
         }
     }
 
-    private void OnEnable() => RL_Player.OnPlayerDestroyed += HandlePlayerDestroyed;
-    private void OnDisable() => RL_Player.OnPlayerDestroyed -= HandlePlayerDestroyed;
+    private void OnEnable() => RL_PlayerController.OnPlayerDestroyed += HandlePlayerDestroyed;
+    private void OnDisable() => RL_PlayerController.OnPlayerDestroyed -= HandlePlayerDestroyed;
     #endregion
 
     #region Initialization
@@ -429,9 +429,9 @@ public class RL_EnemyController : MonoBehaviour
         if (target == null) return false;
 
         // Try to find an RL_Player first (training player API)
-        RL_Player rlPlayer = target.GetComponent<RL_Player>() 
-                            ?? target.GetComponentInParent<RL_Player>() 
-                            ?? target.GetComponentInChildren<RL_Player>();
+        RL_PlayerController rlPlayer = target.GetComponent<RL_PlayerController>() 
+                            ?? target.GetComponentInParent<RL_PlayerController>() 
+                            ?? target.GetComponentInChildren<RL_PlayerController>();
 
         // Try to find a regular PlayerController
         PlayerController player = target.GetComponent<PlayerController>()
@@ -521,7 +521,7 @@ public class RL_EnemyController : MonoBehaviour
         if (player != null) return player;
 
         // Try RL_Player component
-        RL_Player rlPlayer = collider.GetComponent<RL_Player>();
+        RL_PlayerController rlPlayer = collider.GetComponent<RL_PlayerController>();
         if (rlPlayer != null) return rlPlayer.GetComponent<PlayerController>();
 
         // Try parent if it's a child collider
@@ -530,7 +530,7 @@ public class RL_EnemyController : MonoBehaviour
             player = collider.transform.parent.GetComponent<PlayerController>();
             if (player != null) return player;
 
-            rlPlayer = collider.transform.parent.GetComponent<RL_Player>();
+            rlPlayer = collider.transform.parent.GetComponent<RL_PlayerController>();
             if (rlPlayer != null) return rlPlayer.GetComponent<PlayerController>();
         }
 
@@ -872,7 +872,7 @@ public class RL_EnemyController : MonoBehaviour
             PlayerController player = collider.GetComponentInParent<PlayerController>();
             if (player != null) return player;
             
-            RL_Player rlPlayer = collider.GetComponentInParent<RL_Player>();
+            RL_PlayerController rlPlayer = collider.GetComponentInParent<RL_PlayerController>();
             if (rlPlayer != null) return rlPlayer.GetComponent<PlayerController>();
             
             return null;

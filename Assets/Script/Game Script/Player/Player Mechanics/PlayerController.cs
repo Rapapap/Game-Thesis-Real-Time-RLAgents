@@ -54,8 +54,8 @@ public class PlayerController : MonoBehaviour
     public bool HasTeleported = false;
     public bool KILLPLAYER = false;
     
-    private bool isEnemyDetected = false;
-    private Transform enemyTransform = null;
+    // Improved enemy detection system
+    private CombatTarget currentTarget = null;
     #endregion
 
     #region Particles
@@ -98,8 +98,15 @@ public class PlayerController : MonoBehaviour
     {
         if (ShouldDetectEnemy(other))
         {
-            enemyTransform = other.transform;
-            isEnemyDetected = true;
+            RegisterNewTarget(other);
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (IsCurrentTarget(other))
+        {
+            ClearCurrentTarget();
         }
     }
     #endregion
@@ -246,7 +253,7 @@ public class PlayerController : MonoBehaviour
 
     private void RotatePlayer()
     {
-        if (enemyTransform == null && !isEnemyDetected)
+        if (!HasValidTarget())
         {
             Quaternion toRotation = Quaternion.LookRotation(move, Vector3.up);
             transform.rotation = Quaternion.Slerp(transform.rotation, toRotation, Time.deltaTime * 10);
@@ -257,7 +264,7 @@ public class PlayerController : MonoBehaviour
     #region Combat System
     private bool CanDash()
     {
-        return canDash && enemyTransform == null && !isEnemyDetected && playerState != PlayerState.SkillAttack;
+        return canDash && !HasValidTarget() && playerState != PlayerState.SkillAttack;
     }
 
     private bool CanAttack()
@@ -318,7 +325,7 @@ public class PlayerController : MonoBehaviour
         while (Time.time < startTime + playerData.playerDashTime)
         {
             dashCount = 0;
-            if (enemyTransform == null && !isEnemyDetected)
+            if (!HasValidTarget())
             {
                 controller.Move(playerData.playerDashSpeed * Time.deltaTime * transform.forward);
                 yield return null;
@@ -369,56 +376,97 @@ public class PlayerController : MonoBehaviour
     }
     #endregion
 
-    #region Combat Assists
+    #region Enhanced Combat Assists System
     private bool ShouldDetectEnemy(Collider other)
     {
         return other.CompareTag("Enemy") && 
                other.gameObject.layer == LayerMask.NameToLayer("Default") && 
-               !isEnemyDetected && 
-               enemyTransform == null;
+               currentTarget == null;
+    }
+
+    private bool IsCurrentTarget(Collider other)
+    {
+        return currentTarget != null && 
+               currentTarget.transform == other.transform;
+    }
+
+    private void RegisterNewTarget(Collider enemyCollider)
+    {
+        var target = CreateCombatTarget(enemyCollider);
+        if (target != null && target.IsValid())
+        {
+            currentTarget = target;
+        }
+    }
+
+    private CombatTarget CreateCombatTarget(Collider enemyCollider)
+    {
+        var enemyController = enemyCollider.GetComponent<EnemyController>();
+        var rlEnemyController = enemyCollider.GetComponent<RL_EnemyController>();
+        
+        if (enemyController != null)
+        {
+            return new CombatTarget(enemyCollider.transform, enemyController);
+        }
+        else if (rlEnemyController != null)
+        {
+            return new CombatTarget(enemyCollider.transform, rlEnemyController);
+        }
+        
+        return null;
+    }
+
+    private bool HasValidTarget()
+    {
+        return currentTarget != null && currentTarget.IsValid();
+    }
+
+    private void ClearCurrentTarget()
+    {
+        currentTarget = null;
     }
 
     private void HandleCombatAssists()
     {
-        if (!isEnemyDetected || enemyTransform == null) return;
-
-        if (IsEnemyDead())
+        if (!HasValidTarget())
         {
-            ResetEnemyDetection();
+            ClearCurrentTarget();
             return;
         }
 
-        ProcessEnemyAssist();
+        if (!currentTarget.IsAlive())
+        {
+            ClearCurrentTarget();
+            return;
+        }
+
+        ProcessTargetAssist();
     }
 
-    private bool IsEnemyDead()
+    private void ProcessTargetAssist()
     {
-        var enemyController = enemyTransform.GetComponent<EnemyController>();
-        var rlEnemyController = enemyTransform.GetComponent<RL_EnemyController>();
-        
-        return (enemyController?.enemyHP <= 0) || (rlEnemyController?.enemyHP <= 0);
-    }
-
-    private void ProcessEnemyAssist()
-    {
-        Vector3 direction = enemyTransform.position - transform.position;
+        Vector3 direction = currentTarget.GetPosition() - transform.position;
         direction.y = 0;
 
-        if (direction.magnitude <= AssistRange)
+        float distanceToTarget = direction.magnitude;
+
+        if (distanceToTarget <= AssistRange)
         {
-            Quaternion targetRotation = Quaternion.LookRotation(direction);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 10);
+            RotateTowardsTarget(direction);
         }
         else
         {
-            ResetEnemyDetection();
+            ClearCurrentTarget();
         }
     }
 
-    private void ResetEnemyDetection()
+    private void RotateTowardsTarget(Vector3 direction)
     {
-        enemyTransform = null;
-        isEnemyDetected = false;
+        if (direction.magnitude > 0.01f) // Avoid division by zero
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(direction.normalized);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 10);
+        }
     }
     #endregion
 
@@ -491,6 +539,7 @@ public class PlayerController : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         isAlive = false;
         Animator.SetTrigger("Death");
+        ClearCurrentTarget(); // Clear target on death
         Destroy(gameObject, 6);
     }
     #endregion
@@ -515,3 +564,64 @@ public class PlayerController : MonoBehaviour
     }
     #endregion
 }
+
+#region Combat Target System
+[System.Serializable]
+public class CombatTarget
+{
+    public Transform transform { get; private set; }
+    private EnemyController enemyController;
+    private RL_EnemyController rlEnemyController;
+    
+    public CombatTarget(Transform targetTransform, EnemyController enemy)
+    {
+        transform = targetTransform;
+        enemyController = enemy;
+        rlEnemyController = null;
+    }
+    
+    public CombatTarget(Transform targetTransform, RL_EnemyController rlEnemy)
+    {
+        transform = targetTransform;
+        enemyController = null;
+        rlEnemyController = rlEnemy;
+    }
+    
+    public bool IsValid()
+    {
+        return transform != null && 
+               (enemyController != null || rlEnemyController != null);
+    }
+    
+    public bool IsAlive()
+    {
+        if (!IsValid()) return false;
+        
+        if (enemyController != null)
+            return enemyController.enemyHP > 0;
+            
+        if (rlEnemyController != null)
+            return rlEnemyController.enemyHP > 0;
+            
+        return false;
+    }
+    
+    public Vector3 GetPosition()
+    {
+        return IsValid() ? transform.position : Vector3.zero;
+    }
+    
+    public int GetHealth()
+    {
+        if (!IsValid()) return 0;
+        
+        if (enemyController != null)
+            return enemyController.enemyHP;
+            
+        if (rlEnemyController != null)
+            return rlEnemyController.enemyHP;
+            
+        return 0;
+    }
+}
+#endregion

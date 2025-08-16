@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class RL_Player : MonoBehaviour
+public class RL_PlayerController : MonoBehaviour
 {
-    public static RL_Player Instance;
+    public static RL_PlayerController Instance;
     public static event System.Action OnPlayerDestroyed;
 
     [Header("Training Configuration")]
@@ -168,7 +168,7 @@ public class RL_Player : MonoBehaviour
 
     private void NotifyDestruction()
     {
-        var target = GetComponent<RL_TrainingTarget>();
+        var target = GetComponent<RL_TrainingPlayer>();
         target?.ForceNotifyDestruction();
     }
 

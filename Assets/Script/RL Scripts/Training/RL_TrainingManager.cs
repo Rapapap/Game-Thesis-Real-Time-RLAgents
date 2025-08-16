@@ -12,7 +12,7 @@ public class RL_TrainingManager : MonoBehaviour
     [SerializeField] private bool enableTargetSpawning = true;
 
     private RL_TrainingEnemySpawner enemySpawner;
-    private RL_TrainingTargetSpawner[] targetSpawners;
+    private RL_TrainingPlayerSpawner[] targetSpawners;
     private List<NormalEnemyAgent> allAgents = new List<NormalEnemyAgent>();
     private bool isResetting = false;
     private int activeEnemiesCount = 0;
@@ -91,7 +91,7 @@ public class RL_TrainingManager : MonoBehaviour
     private void InitializeComponents()
     {
         enemySpawner = Object.FindFirstObjectByType<RL_TrainingEnemySpawner>();
-        targetSpawners = Object.FindObjectsByType<RL_TrainingTargetSpawner>(FindObjectsSortMode.None);
+        targetSpawners = Object.FindObjectsByType<RL_TrainingPlayerSpawner>(FindObjectsSortMode.None);
         
         ValidateComponents();
     }

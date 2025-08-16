@@ -15,7 +15,6 @@ public enum EnemyHighLevelAction
 
 public sealed class NormalEnemyActions
 {
-    #region Action Helper Class 
     public class PlayerDetection
     {
         private readonly RayPerceptionSensorComponent3D raySensor;
@@ -85,7 +84,7 @@ public sealed class NormalEnemyActions
             playerTransform = null;
             
             // Find active player - prefer RL_Player component
-            var rlPlayer = Object.FindFirstObjectByType<RL_Player>();
+            var rlPlayer = Object.FindFirstObjectByType<RL_PlayerController>();
             if (rlPlayer != null && rlPlayer.gameObject.activeInHierarchy)
             {
                 playerTransform = rlPlayer.transform;
@@ -290,6 +289,4 @@ public sealed class NormalEnemyActions
             fleeDirection = Vector3.zero;
         }
     }
-
-    #endregion
 }

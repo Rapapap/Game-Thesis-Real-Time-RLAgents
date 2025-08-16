@@ -38,7 +38,7 @@ public class WeaponController : MonoBehaviour
             }
             else if (other.gameObject.CompareTag("Player"))
             {
-                var target = other.gameObject.GetComponent<RL_Player>();
+                var target = other.gameObject.GetComponent<RL_PlayerController>();
                 if (target != null && player != null && player.playerData != null)
                 {
                     target.DamagePlayer(player.playerData.playerAttack);

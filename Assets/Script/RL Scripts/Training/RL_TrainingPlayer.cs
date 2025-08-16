@@ -1,11 +1,11 @@
 using UnityEngine;
 
-public class RL_TrainingTarget : MonoBehaviour
+public class RL_TrainingPlayer : MonoBehaviour
 {
-    private RL_TrainingTargetSpawner spawner;
+    private RL_TrainingPlayerSpawner spawner;
     private bool isBeingDestroyed = false;
 
-    public void Initialize(RL_TrainingTargetSpawner targetSpawner) => spawner = targetSpawner;
+    public void Initialize(RL_TrainingPlayerSpawner targetSpawner) => spawner = targetSpawner;
 
     public void ForceNotifyDestruction()
     {
