@@ -1413,15 +1413,15 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5392606700045520043}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: be3f885fecb1bdb44ad8ae5db78b6946, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lootDataPrefab: {fileID: 8562824243544606926, guid: bc869285f04b6a04e963e6eb7d0b9e79, type: 3}
-  lootGearPrefab: {fileID: 8562824243544606926, guid: eadaf3935cd3f0244a150efd54099c65, type: 3}
+  lootDataPrefab: {fileID: 0}
+  lootGearPrefab: {fileID: 0}
   lootHealthPrefab: {fileID: 0}
-  spawnGearLoot: 1
+  spawnGearLoot: 0
   spawnInterval: 3
 --- !u!54 &-8896010834828871572
 Rigidbody:
@@ -1558,7 +1558,7 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 5022602860645237092, guid: f84d436dac25a4f40b205f66e07841e0, type: 3}
+  m_Model: {fileID: 5022602860645237092, guid: 67da7386eed91104ab97ba7ba5a9c842, type: 3}
   m_InferenceDevice: 0
   m_BehaviorType: 2
   m_BehaviorName: NormalEnemy
@@ -1589,11 +1589,11 @@ MonoBehaviour:
   agentRigidbody: {fileID: -8896010834828871572}
   moveSpeed: 5
   rotationSpeed: 180
-  showDebugInfo: 0
+  showDebugInfo: 1
   debugTextOffset: {x: 10, y: 230}
   debugTextColor: {r: 0.027777672, g: 0, b: 1, a: 1}
   debugFontSize: 14
-  enableEpisodeReset: 0
+  enableEpisodeReset: 1
 --- !u!114 &6444236893863942488
 MonoBehaviour:
   m_ObjectHideFlags: 0

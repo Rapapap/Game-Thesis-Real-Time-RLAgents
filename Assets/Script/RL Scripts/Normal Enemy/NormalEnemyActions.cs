@@ -25,7 +25,7 @@ public sealed class NormalEnemyActions
         private Vector3 lastPlayerPosition;
 
         private float lastPlayerCheckTime;
-        private const float PLAYER_CHECK_INTERVAL = 1f; // Reduced for better responsiveness
+        private const float PLAYER_CHECK_INTERVAL = 1f; 
 
         public PlayerDetection(RayPerceptionSensorComponent3D raySensor, LayerMask obstacleMask)
         {
