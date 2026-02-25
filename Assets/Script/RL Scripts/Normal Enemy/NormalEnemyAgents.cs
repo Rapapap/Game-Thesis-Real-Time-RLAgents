@@ -56,7 +56,7 @@ public class NormalEnemyAgent : Agent
     private Vector3 initialPosition;
     private string currentState = "Idle";
     private string currentAction = "Idle";
-    private float previousDistanceToPlayer = float.MaxValue;
+    private float previousDistanceToPlayer = 0f;
     private float lastAttackTime;
     private bool isInitialized = false;
     private Vector3 lastPosition;
@@ -322,7 +322,7 @@ public class NormalEnemyAgent : Agent
         lastPositionForChaseReward = transform.position;
         chaseMovementAccumulator = 0f;
         isCurrentlyChasing = false;
-        previousDistanceToPlayer = float.MaxValue;
+        previousDistanceToPlayer = 0f;
 
         patrolSystem?.Reset();
         movementController?.Reset();
@@ -375,11 +375,6 @@ public class NormalEnemyAgent : Agent
     private void CheckEpisodeEnd()
     {
         if (StepCount >= MaxStep)
-        {
-            EndEpisode();
-        }
-
-        if (patrolSystem.PatrolLoopsCompleted >= 3)
         {
             EndEpisode();
         }
@@ -478,19 +473,18 @@ public class NormalEnemyAgent : Agent
         }
         else
         {
-            // FIXED: More aggressive chase behavior with proper direction calculation
+            // Blend agent actions with chase guidance so the RL agent can learn movement
             Vector3 directionToPlayer = (playerPos - transform.position).normalized;
             Vector3 localDirection = transform.InverseTransformDirection(directionToPlayer);
 
-            // Enhanced chase movement - prioritize forward movement toward player
-            float chaseForward = Mathf.Max(0.8f, localDirection.z); // Minimum forward momentum
-            float chaseRight = localDirection.x * 0.7f; // Side adjustment
+            // 50/50 blend between agent's actions and chase guidance
+            float guidanceForward = Mathf.Clamp01(localDirection.z);
+            float guidanceRight = localDirection.x * 0.5f;
 
-            // Override user inputs during chase for more aggressive behavior
-            chaseForward = Mathf.Max(forward, chaseForward);
-            chaseRight = right + chaseRight;
+            float chaseForward = (forward + guidanceForward) * 0.5f;
+            float chaseRight = (right + guidanceRight) * 0.5f;
 
-            movementController.ProcessMovement(chaseForward, chaseRight, 0f); // No manual rotation during chase
+            movementController.ProcessMovement(chaseForward, chaseRight, 0f);
         }
     }
 
@@ -546,18 +540,16 @@ public class NormalEnemyAgent : Agent
         currentState = "Attacking";
         currentAction = "Attacking";
 
-        // FIXED: Ensure proper facing before attack
+        // Face the player before attacking
         if (playerDetection.IsPlayerAvailable())
         {
             Vector3 playerPos = playerDetection.GetPlayerPosition();
             movementController.FaceTarget(playerPos);
         }
-        else
-        {
-            // Direct attack if player position unavailable
-            rl_EnemyController.AgentAttack();
-            rewardConfig.AddAttackReward(this);
-        }
+
+        // Always execute the actual attack and reward
+        rl_EnemyController.AgentAttack();
+        rewardConfig.AddAttackReward(this);
     }
 
     private void ProcessAttackAction(bool shouldAttack)
@@ -569,21 +561,14 @@ public class NormalEnemyAgent : Agent
         if (shouldAttack && canAttack && playerInRange && !IsDead)
         {
             ExecuteAttack();
-            rewardConfig.AddAttackReward(this);
-        }
-        else if (shouldAttack && !canAttack)
-        {
-            // Don't punish for attack cooldown, just for premature attacking
-            if (playerInRange)
-            {
-                rewardConfig.AddDoesntAttackInstantlyPunishment(this);
-            }
+            // Reward is already given inside ExecuteAttack, no duplicate here
         }
         else if (!shouldAttack && canAttack && playerInRange)
         {
             // Player is in range but agent chose not to attack
             rewardConfig.AddDoesntAttackInstantlyPunishment(this);
         }
+        // No punishment when on cooldown — agent can't control the timer
     }
 
 
@@ -687,6 +672,14 @@ public class NormalEnemyAgent : Agent
         if (playerDetection.IsPlayerAvailable())
         {
             float currentDistance = playerDetection.GetDistanceToPlayer(transform.position);
+            
+            // Skip reward on first measurement (establish baseline)
+            if (previousDistanceToPlayer <= 0f)
+            {
+                previousDistanceToPlayer = currentDistance;
+                return;
+            }
+            
             if (currentDistance < previousDistanceToPlayer)
             {
                 rewardConfig.AddApproachPlayerReward(this, deltaTimeBucket);
@@ -701,8 +694,11 @@ public class NormalEnemyAgent : Agent
 
     private void ProcessPlayerVisibilityRewards()
     {
-        if (playerDetection.IsPlayerVisible && !currentAction.Contains("Chasing"))
-            rewardConfig.AddDoesntChasePlayerPunishment(this, chaseMovementAccumulator);
+        if (playerDetection.IsPlayerVisible 
+            && !currentAction.Contains("Chasing") 
+            && !currentAction.Contains("Attacking")
+            && !currentAction.Contains("Reacting"))
+            rewardConfig.AddDoesntChasePlayerPunishment(this, Time.deltaTime);
     }
 
     public void HandleEnemyDeath()
@@ -765,7 +761,7 @@ public class NormalEnemyAgent : Agent
         if (!playerDetection.IsPlayerAvailable()) return false;
         
         float distance = Vector3.Distance(transform.position, playerDetection.GetPlayerPosition());
-        return distance <= rl_EnemyController.attackRange && distance >= 1.5f; 
+        return distance <= rl_EnemyController.attackRange && distance >= 0.5f; 
     }
 
     public void SetPatrolPoints(Transform[] points) => patrolSystem?.SetPatrolPoints(points);

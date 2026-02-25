@@ -8,24 +8,24 @@ public class NormalEnemyRewards : MonoBehaviour
     public float KillPlayerReward = +1f;
     public float DiedByPlayerPunishment = -1f;
 
-    [Header("Major Rewards/Punishments (+0.5 to +1 / -0.5 to -1)")]
-    public float DetectPlayerReward = +0.5f;
-    public float PatrolCompleteReward = +0.5f;
-    public float ChasePlayerReward = +0.9f;
-    public float AttackPlayerReward = +0.8f;
-    public float HitByPlayerPunishment = -0.7f;
+    [Header("Major Rewards/Punishments (one-shot events)")]
+    public float DetectPlayerReward = +0.10f;
+    public float PatrolCompleteReward = +0.15f;
+    public float ChasePlayerReward = +0.20f;
+    public float AttackPlayerReward = +0.30f;
+    public float HitByPlayerPunishment = -0.20f;
 
-    [Header("Rewards/Punishments (+0.005 to +0.5 / -0.005 to -0.5)")]
-    public float PatrolStepReward = +0.010f;
-    public float PatrolWrongStepPunishment = -0.01f;
-    public float ObstaclePunishment = -0.20f;
-    public float NoMovementPunishment = -0.010f;
-    public float ApproachPlayerReward = +0.01f;
-    public float ChaseStepReward = +0.020f;
-    public float DoesntChasePlayerPunishment = -0.10f;
-    public float FailApproachPlayerPunishment = -0.10f;
-    public float DoesntAttackInstantlyPunishment = -0.10f;
-    public float AttackMissedPunishment = -0.10f;
+    [Header("Rewards/Punishments (per-step / frequent, time-scaled)")]
+    public float PatrolStepReward = +0.001f;
+    public float PatrolWrongStepPunishment = -0.001f;
+    public float ObstaclePunishment = -0.02f;
+    public float NoMovementPunishment = -0.001f;
+    public float ApproachPlayerReward = +0.005f;
+    public float ChaseStepReward = +0.005f;
+    public float DoesntChasePlayerPunishment = -0.005f;
+    public float FailApproachPlayerPunishment = -0.005f;
+    public float DoesntAttackInstantlyPunishment = -0.02f;
+    public float AttackMissedPunishment = -0.05f;
 
     #endregion
 
@@ -74,31 +74,31 @@ public class NormalEnemyRewards : MonoBehaviour
 
     #endregion
 
-    #region Rewards
+        #region Rewards
 
     public void AddPatrolStepReward(Agent agent, float deltaTime)
     {
-        agent.AddReward(PatrolStepReward);
+        agent.AddReward(PatrolStepReward * deltaTime);
     }
 
     public void AddChaseStepReward(Agent agent, float deltaTime)
     {
-        agent.AddReward(ChaseStepReward);
+        agent.AddReward(ChaseStepReward * deltaTime);
     }
 
     public void AddNoMovementPunishment(Agent agent, float deltaTime)
     {
-        agent.AddReward(NoMovementPunishment);
+        agent.AddReward(NoMovementPunishment * deltaTime);
     }
 
     public void AddApproachPlayerReward(Agent agent, float deltaTime)
     {
-        agent.AddReward(ApproachPlayerReward);
+        agent.AddReward(ApproachPlayerReward * deltaTime);
     }
 
     public void AddDoesntChasePlayerPunishment(Agent agent, float deltaTime)
     {
-        agent.AddReward(DoesntChasePlayerPunishment);
+        agent.AddReward(DoesntChasePlayerPunishment * deltaTime);
     }
 
     public void AddPatrolWrongStepPunishment(Agent agent)

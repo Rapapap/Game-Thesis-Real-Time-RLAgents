@@ -125,8 +125,8 @@ public class RL_EnemyController : MonoBehaviour
     {
         return (other.gameObject.layer == LayerMask.NameToLayer("Weapon")) ||
                 (other.CompareTag("Player") &&
-                other.gameObject.layer == LayerMask.NameToLayer("Hitbox") &&
-                other.gameObject.layer == LayerMask.NameToLayer("Default"));
+                (other.gameObject.layer == LayerMask.NameToLayer("Hitbox") ||
+                 other.gameObject.layer == LayerMask.NameToLayer("Default")));
     }   
 
     private void OnTriggerExit(Collider other)
