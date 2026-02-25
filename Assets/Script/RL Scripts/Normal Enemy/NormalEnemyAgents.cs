@@ -108,10 +108,21 @@ public class NormalEnemyAgent : Agent
         // Only reset if in training mode or episode reset is explicitly enabled
         if (TrainingActive || enableEpisodeReset)
         {
+            // Reactivate if deactivated on death
+            if (!gameObject.activeSelf)
+                gameObject.SetActive(true);
+
+            // Stop any lingering coroutines on the controller (e.g. knockback, attack sequences)
+            rl_EnemyController.StopAllCoroutines();
+
             ResetForNewEpisode();
             RespawnAtRandomLocation();
             ResetTrainingArena();
             rl_EnemyController.ShowHealthBar();
+
+            // Reset controller combat/knockback states
+            rl_EnemyController.combatState?.ResetCombatState();
+            rl_EnemyController.fleeState?.Reset();
 
             if (animator != null)
             {
@@ -707,7 +718,9 @@ public class NormalEnemyAgent : Agent
         currentState = "Dead";
         currentAction = "Dead";
         isCurrentlyChasing = false;
-        animator.SetBool("isDead", true);
+        
+        if (animator != null)
+            animator.SetBool("isDead", true);
 
         agentRigidbody.linearVelocity = Vector3.zero;
         agentRigidbody.angularVelocity = Vector3.zero;
@@ -715,6 +728,9 @@ public class NormalEnemyAgent : Agent
         // Only end episode if in training mode or episode reset is enabled
         if (TrainingActive || enableEpisodeReset)
         {
+            // Stop any pending coroutines on the controller (e.g. DeactivateAfterDelay)
+            // so they don't fire after the episode resets
+            rl_EnemyController.StopAllCoroutines();
             EndEpisode();
         }
     }

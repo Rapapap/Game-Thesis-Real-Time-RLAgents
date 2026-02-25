@@ -72,6 +72,15 @@ public class RL_TrainingEnemySpawner : MonoBehaviour
 
     public void RespawnAllArenas()
     {
+        // During training, agents are preserved (deactivated, not destroyed)
+        // They reset via ML-Agents OnEpisodeBegin. Only respawn if not training.
+        if (NormalEnemyAgent.TrainingActive)
+        {
+            if (debugSpawning)
+                Debug.Log("Training active: Skipping RespawnAllArenas (agents managed by ML-Agents)");
+            return;
+        }
+
         StopAllCoroutines();
         DestroyAllEnemies();
         StartCoroutine(InitializeAllArenasSequentially());

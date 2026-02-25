@@ -4,7 +4,7 @@ behaviors:
     max_steps: 15000000      
     time_horizon: 512           
     summary_freq: 10000
-    threaded: true
+    threaded: false
     hyperparameters:
       batch_size: 2048          
       buffer_size: 20480        

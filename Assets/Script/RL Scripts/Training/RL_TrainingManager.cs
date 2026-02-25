@@ -127,19 +127,16 @@ public class RL_TrainingManager : MonoBehaviour
         LogDebug("Starting new training episode...");
 
         RefreshAgentList();
-        bool allDead = allAgents.Count == 0 || allAgents.All(agent => agent.IsDead);
         
-        if (allDead)
-        {
-            ConfigureAllTargetSpawners();
-            ResetAllTargetSpawners();
-            yield return new WaitForSeconds(episodeResetDelay);
-            enemySpawner?.RespawnAllArenas();
-            yield return new WaitForSeconds(1f);
-            RefreshAgentList();
-        }
+        // Reset target spawners for new episode
+        ConfigureAllTargetSpawners();
+        ResetAllTargetSpawners();
+        yield return new WaitForSeconds(episodeResetDelay);
         
+        // Reactivate and reset all agents (they are deactivated, not destroyed)
         ResetAllAgents();
+        
+        RefreshAgentList();
         LogDebug($"Episode reset complete. Active agents: {allAgents.Count}");
         isResetting = false;
     }
@@ -180,28 +177,42 @@ public class RL_TrainingManager : MonoBehaviour
         allAgents.Clear();
         activeEnemiesCount = 0;
         
-        var foundAgents = FindObjectsByType<NormalEnemyAgent>(FindObjectsSortMode.None);
+        // Find ALL agents including inactive (deactivated on death) ones
+        var foundAgents = FindObjectsByType<NormalEnemyAgent>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         
         foreach (var agent in foundAgents)
         {
-            if (agent?.gameObject.activeInHierarchy == true)
+            if (agent != null)
             {
                 allAgents.Add(agent);
-                activeEnemiesCount++;
+                if (agent.gameObject.activeInHierarchy && !agent.IsDead)
+                {
+                    activeEnemiesCount++;
+                }
             }
         }
         
-        LogDebug($"Refreshed agent list: Found {allAgents.Count} active agents");
+        LogDebug($"Refreshed agent list: Found {allAgents.Count} total agents ({activeEnemiesCount} active)");
     }
 
     private void ResetAllAgents()
     {
         foreach (var agent in allAgents)
         {
-            if (agent?.gameObject.activeInHierarchy == true)
+            if (agent != null)
             {
-                try { agent.EndEpisode(); }
-                catch (System.Exception e) { Debug.LogError($"Error resetting agent {agent.name}: {e.Message}"); }
+                try
+                {
+                    // Reactivate deactivated agents so ML-Agents can process them
+                    if (!agent.gameObject.activeSelf)
+                        agent.gameObject.SetActive(true);
+                    
+                    agent.EndEpisode();
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogError($"Error resetting agent {agent.name}: {e.Message}");
+                }
             }
         }
     }

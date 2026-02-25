@@ -789,10 +789,27 @@ public class RL_EnemyController : MonoBehaviour
         if (agent != null)
         {
             agent.HandleEnemyDeath();
+
+            // During training: deactivate instead of destroy to preserve ML-Agents brain connection
+            if (NormalEnemyAgent.TrainingActive)
+            {
+                StartCoroutine(DeactivateAfterDelay());
+                return;
+            }
         }
 
-        // Always ensure destruction happens after delay, regardless of training mode
+        // Non-training: destroy as normal
         StartCoroutine(DestroyAfterDelay());
+    }
+
+    private IEnumerator DeactivateAfterDelay()
+    {
+        yield return new WaitForSeconds(DESTROY_DELAY);
+        
+        if (gameObject != null)
+        {
+            gameObject.SetActive(false);
+        }
     }
 
     private IEnumerator DestroyAfterDelay()
