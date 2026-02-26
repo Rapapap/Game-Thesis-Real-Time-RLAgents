@@ -65,6 +65,9 @@ public class NormalEnemyAgent : Agent
     private Vector3 lastPositionForChaseReward;
     private float chaseMovementAccumulator = 0f;
     private bool isCurrentlyChasing = false;
+    private int episodeCount = 0;
+    private RL_TrainingPlayerSpawner cachedPlayerSpawner;
+    private RL_TrainingManager cachedTrainingManager;
     #endregion
 
     #region Agent Lifecycle
@@ -94,11 +97,18 @@ public class NormalEnemyAgent : Agent
         lastPositionForChaseReward = transform.position;
         //ResetAgentState();
         rl_EnemyController.InitializeHealthBar();
+        
+        // Cache references to avoid FindFirstObjectByType every episode
+        cachedPlayerSpawner = FindFirstObjectByType<RL_TrainingPlayerSpawner>();
+        cachedTrainingManager = FindFirstObjectByType<RL_TrainingManager>();
+        
         isInitialized = true;
     }
 
     public override void OnEpisodeBegin()
     {
+        episodeCount++;
+        
         if (!isInitialized)
         {
             Initialize();
@@ -123,6 +133,7 @@ public class NormalEnemyAgent : Agent
             // Reset controller combat/knockback states
             rl_EnemyController.combatState?.ResetCombatState();
             rl_EnemyController.fleeState?.Reset();
+            rl_EnemyController.ResetKnockback();
 
             if (animator != null)
             {
@@ -276,6 +287,13 @@ public class NormalEnemyAgent : Agent
 
     private void DisableConflictingComponents()
     {
+        // Disable NavMeshAgent — conflicts with Rigidbody-based RL movement
+        var navAgent = GetComponent<UnityEngine.AI.NavMeshAgent>();
+        if (navAgent != null)
+        {
+            navAgent.enabled = false;
+        }
+
         var components = GetComponents<MonoBehaviour>();
         foreach (var component in components)
         {
@@ -380,7 +398,7 @@ public class NormalEnemyAgent : Agent
 
     private void ResetTrainingArena()
     {
-        FindFirstObjectByType<RL_TrainingPlayerSpawner>()?.ResetArena();
+        cachedPlayerSpawner?.ResetArena();
     }
 
     private void CheckEpisodeEnd()
@@ -650,17 +668,22 @@ public class NormalEnemyAgent : Agent
         {
             float moved = Vector3.Distance(transform.position, lastPositionForChaseReward);
 
-            if (moved > CHASE_MOVEMENT_THRESHOLD)
-            {
-                chaseMovementAccumulator += deltaTime;
+            chaseMovementAccumulator += deltaTime;
 
-                if (chaseMovementAccumulator >= CHASE_REWARD_INTERVAL)
+            if (chaseMovementAccumulator >= CHASE_REWARD_INTERVAL)
+            {
+                if (moved > CHASE_MOVEMENT_THRESHOLD)
                 {
-                    rewardConfig.AddChaseStepReward(this, chaseMovementAccumulator);
+                    // Agent moved — check if it actually got closer in ProcessChaseRewards
                     ProcessChaseRewards(chaseMovementAccumulator);
-                    chaseMovementAccumulator = 0f;
-                    lastPositionForChaseReward = transform.position;
                 }
+                else
+                {
+                    // Agent is chasing but barely moving (stuck on wall/other agent) — punish
+                    rewardConfig.AddFailApproachPlayerPunishment(this);
+                }
+                chaseMovementAccumulator = 0f;
+                lastPositionForChaseReward = transform.position;
             }
         }
         else if (currentAction == "Patrolling")
@@ -693,10 +716,13 @@ public class NormalEnemyAgent : Agent
             
             if (currentDistance < previousDistanceToPlayer)
             {
+                // Agent is closing distance — reward both approach and chase step
                 rewardConfig.AddApproachPlayerReward(this, deltaTimeBucket);
+                rewardConfig.AddChaseStepReward(this, deltaTimeBucket);
             }
             else
             {
+                // Agent is NOT getting closer (stuck, blocked, or moving wrong way) — punish
                 rewardConfig.AddFailApproachPlayerPunishment(this);
             }
             previousDistanceToPlayer = currentDistance;
@@ -731,6 +757,10 @@ public class NormalEnemyAgent : Agent
             // Stop any pending coroutines on the controller (e.g. DeactivateAfterDelay)
             // so they don't fire after the episode resets
             rl_EnemyController.StopAllCoroutines();
+            
+            // Notify Training Manager to handle arena reset logic if all agents die
+            cachedTrainingManager?.HandleEnemyDeath();
+            
             EndEpisode();
         }
     }
@@ -785,12 +815,26 @@ public class NormalEnemyAgent : Agent
     void OnGUI()
     {
         if (showDebugInfo)
-            debugDisplay.DisplayDebugInfo(gameObject.name, currentState, currentAction, debugTextOffset, debugTextColor, debugFontSize, patrolSystem.PatrolLoopsCompleted);
+            debugDisplay.DisplayDebugInfo(gameObject.name, currentState, currentAction, debugTextOffset, debugTextColor, debugFontSize, patrolSystem.PatrolLoopsCompleted, episodeCount);
     }
 
     void OnCollisionEnter(Collision collision)
     {
-        if (((1 << collision.gameObject.layer) & LayerMask.GetMask("Wall", "Obstacle", "Environment")) != 0)
+        int collisionLayer = 1 << collision.gameObject.layer;
+        int punishableLayers = LayerMask.GetMask("Wall", "Obstacle", "Environment", "Enemy");
+        
+        if ((collisionLayer & punishableLayers) != 0)
+        {
+            rewardConfig.AddObstaclePunishment(this, Time.deltaTime);
+        }
+    }
+
+    void OnCollisionStay(Collision collision)
+    {
+        int collisionLayer = 1 << collision.gameObject.layer;
+        int punishableLayers = LayerMask.GetMask("Wall", "Obstacle", "Environment", "Enemy");
+        
+        if ((collisionLayer & punishableLayers) != 0)
         {
             rewardConfig.AddObstaclePunishment(this, Time.deltaTime);
         }
@@ -1088,7 +1132,7 @@ public class DebugDisplay
     public void IncrementSteps() => episodeSteps++;
     public void UpdateCumulativeReward(float reward) => cumulativeReward = reward;
 
-    public void DisplayDebugInfo(string agentName, string currentState, string currentAction, Vector2 offset, Color textColor, int fontSize, int patrolLoops)
+    public void DisplayDebugInfo(string agentName, string currentState, string currentAction, Vector2 offset, Color textColor, int fontSize, int patrolLoops, int episodeCount)
     {
         var labelStyle = new GUIStyle
         {
@@ -1096,7 +1140,7 @@ public class DebugDisplay
             normal = { textColor = textColor }
         };
 
-        string debugText = $"{agentName}:\nState: {currentState}\nAction: {currentAction}\nSteps: {episodeSteps}\nCumulative Reward: {cumulativeReward:F3}\nPatrol Loops: {patrolLoops}";
+        string debugText = $"{agentName}:\nState: {currentState}\nAction: {currentAction}\nSteps: {episodeSteps}\nEpisode: {episodeCount}\nCumulative Reward: {cumulativeReward:F3}\nPatrol Loops: {patrolLoops}";
         GUI.Label(new Rect(offset.x, offset.y, 300, 170), debugText, labelStyle);
     }
 }

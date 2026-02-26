@@ -69,7 +69,7 @@ public class NormalEnemyRewards : MonoBehaviour
 
     public void AddObstaclePunishment(Agent agent, float deltaTime)
     {
-        agent.AddReward(ObstaclePunishment);
+        agent.AddReward(ObstaclePunishment * deltaTime);
     }
 
     #endregion
@@ -103,7 +103,7 @@ public class NormalEnemyRewards : MonoBehaviour
 
     public void AddPatrolWrongStepPunishment(Agent agent)
     {
-        agent.AddReward(PatrolWrongStepPunishment);
+        agent.AddReward(PatrolWrongStepPunishment * Time.deltaTime);
     }
 
     public void AddFailApproachPlayerPunishment(Agent agent)
@@ -113,7 +113,7 @@ public class NormalEnemyRewards : MonoBehaviour
 
     public void AddDoesntAttackInstantlyPunishment(Agent agent)
     {
-        agent.AddReward(DoesntAttackInstantlyPunishment);
+        agent.AddReward(DoesntAttackInstantlyPunishment * Time.deltaTime);
     }
 
     public void AddAttackMissedPunishment(Agent agent)

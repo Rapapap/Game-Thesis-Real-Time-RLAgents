@@ -1,4 +1,44 @@
 {
+    "NormalEnemy": {
+        "checkpoints": [
+            {
+                "steps": 142101,
+                "file_path": "results\\rava-train-test\\NormalEnemy\\NormalEnemy-142101.onnx",
+                "reward": 83.00174441544169,
+                "creation_time": 1772064077.575329,
+                "auxillary_file_paths": [
+                    "results\\rava-train-test\\NormalEnemy\\NormalEnemy-142101.pt"
+                ]
+            },
+            {
+                "steps": 499981,
+                "file_path": "results\\rava-train-test\\NormalEnemy\\NormalEnemy-499981.onnx",
+                "reward": 131.5093214555333,
+                "creation_time": 1772069989.6600444,
+                "auxillary_file_paths": [
+                    "results\\rava-train-test\\NormalEnemy\\NormalEnemy-499981.pt"
+                ]
+            },
+            {
+                "steps": 500045,
+                "file_path": "results\\rava-train-test\\NormalEnemy\\NormalEnemy-500045.onnx",
+                "reward": 131.5093214555333,
+                "creation_time": 1772069989.7097216,
+                "auxillary_file_paths": [
+                    "results\\rava-train-test\\NormalEnemy\\NormalEnemy-500045.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 500045,
+            "file_path": "results\\rava-train-test\\NormalEnemy.onnx",
+            "reward": 131.5093214555333,
+            "creation_time": 1772069989.7097216,
+            "auxillary_file_paths": [
+                "results\\rava-train-test\\NormalEnemy\\NormalEnemy-500045.pt"
+            ]
+        }
+    },
     "metadata": {
         "stats_format_version": "0.3.0",
         "mlagents_version": "1.1.0",

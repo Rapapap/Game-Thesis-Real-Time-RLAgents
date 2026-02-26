@@ -177,8 +177,8 @@ public class RL_TrainingManager : MonoBehaviour
         allAgents.Clear();
         activeEnemiesCount = 0;
         
-        // Find ALL agents including inactive (deactivated on death) ones
-        var foundAgents = FindObjectsByType<NormalEnemyAgent>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        // Find ALL agents. During training they should generally stay active.
+        var foundAgents = FindObjectsByType<NormalEnemyAgent>(FindObjectsSortMode.None);
         
         foreach (var agent in foundAgents)
         {
@@ -203,10 +203,10 @@ public class RL_TrainingManager : MonoBehaviour
             {
                 try
                 {
-                    // Reactivate deactivated agents so ML-Agents can process them
-                    if (!agent.gameObject.activeSelf)
+                    // Ensure agent is active before ending episode (should be, but just in case)
+                    if (!agent.gameObject.activeInHierarchy)
                         agent.gameObject.SetActive(true);
-                    
+                        
                     agent.EndEpisode();
                 }
                 catch (System.Exception e)

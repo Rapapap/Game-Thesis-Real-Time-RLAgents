@@ -771,7 +771,9 @@ public class RL_EnemyController : MonoBehaviour
     #region Death & Loot
     public void HandleDeath()
     {
+        if (healthState.IsDead) return;
         healthState.SetDead(true);
+        
         SetAnimationState(dead: true);
         PlayDeathSound();
 
@@ -790,10 +792,11 @@ public class RL_EnemyController : MonoBehaviour
         {
             agent.HandleEnemyDeath();
 
-            // During training: deactivate instead of destroy to preserve ML-Agents brain connection
+            // During training, do NOT deactivate or destroy.
+            // The agent calls EndEpisode(), which triggers OnEpisodeBegin(), which resets the agent.
+            // If we deactivate/destroy, the agent unregisters from Academy and can't be reset.
             if (NormalEnemyAgent.TrainingActive)
             {
-                StartCoroutine(DeactivateAfterDelay());
                 return;
             }
         }
@@ -802,15 +805,6 @@ public class RL_EnemyController : MonoBehaviour
         StartCoroutine(DestroyAfterDelay());
     }
 
-    private IEnumerator DeactivateAfterDelay()
-    {
-        yield return new WaitForSeconds(DESTROY_DELAY);
-        
-        if (gameObject != null)
-        {
-            gameObject.SetActive(false);
-        }
-    }
 
     private IEnumerator DestroyAfterDelay()
     {
@@ -855,6 +849,16 @@ public class RL_EnemyController : MonoBehaviour
     public float GetDistanceToCurrentWaypoint() => waypointNavigation.GetDistanceToCurrentWaypoint(transform.position);
     public Vector3 GetWaypointDirection() => waypointNavigation.GetDirectionToCurrentWaypoint(transform.position);
     #endregion
+
+    public void ResetKnockback()
+    {
+        knockbackState?.ClearKnockback();
+        if (rigidBody != null && !rigidBody.isKinematic)
+        {
+            rigidBody.linearVelocity = Vector3.zero;
+            rigidBody.angularVelocity = Vector3.zero;
+        }
+    }
 
     public class WeaponDetectionForwarder : MonoBehaviour
     {
