@@ -368,6 +368,21 @@ public class RL_TrainingPlayerSpawner : MonoBehaviour
         if (lifeTracker == null)
             lifeTracker = target.AddComponent<RL_TrainingPlayer>();
         lifeTracker.Initialize(this);
+
+        // Configure curriculum player controller with arena bounds (if present)
+        var curriculumController = target.GetComponent<RL_CurriculumPlayerController>();
+        if (curriculumController != null)
+        {
+            int arenaIndex = FindTargetArena(target);
+            if (arenaIndex >= 0 && arenaBounds.ContainsKey(arenaIndex))
+            {
+                var bounds = arenaBounds[arenaIndex];
+                curriculumController.SetArenaBounds(
+                    new Vector3(bounds.minX, bounds.center.y, bounds.minZ),
+                    new Vector3(bounds.maxX, bounds.center.y, bounds.maxZ)
+                );
+            }
+        }
     }
 
     private void PlayEffect(GameObject prefab, Vector3 position)

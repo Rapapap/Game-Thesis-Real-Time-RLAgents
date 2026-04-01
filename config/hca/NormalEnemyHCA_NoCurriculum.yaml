@@ -1,0 +1,47 @@
+# HCA (Hierarchical Critic Assignment) Configuration — No Curriculum
+# Based on: Cao & Lin (2020) - "Reinforcement Learning from Hierarchical Critics"
+#
+# This config trains WITHOUT curriculum learning (static player only).
+# For curriculum learning, use: NormalEnemyHCA.yaml
+#
+# To train:
+#   mlagents-learn config/hca/NormalEnemyHCA_NoCurriculum.yaml --run-id=HCA-NoCurriculum
+#
+# View results:
+#   tensorboard --logdir=results
+
+behaviors:
+  NormalEnemy:
+    trainer_type: hca
+    max_steps: 5000000
+    time_horizon: 512
+    summary_freq: 10000
+    threaded: false
+
+    hyperparameters:
+      batch_size: 2048
+      buffer_size: 20480
+      learning_rate: 0.0001
+      beta: 0.01
+      epsilon: 0.15
+      lambd: 0.95
+      num_epoch: 4
+      learning_rate_schedule: constant
+
+      # --- HCA-Specific Hyperparameters ---
+      manager_hidden_units: 128     # Manager critic network width
+      manager_num_layers: 2         # Manager critic network depth
+      manager_learning_rate: 0.0003 # Manager critic learning rate
+      hca_value_method: softmax     # "max" (RLHC Eq.16) or "softmax" (HCA paper)
+      manager_obs_index: -1         # Index of manager observation sensor (-1 = last)
+
+    network_settings:
+      normalize: true
+      hidden_units: 256             # Worker critic / actor network width
+      num_layers: 3                 # Worker network depth
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+

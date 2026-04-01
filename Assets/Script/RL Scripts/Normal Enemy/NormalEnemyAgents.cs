@@ -14,6 +14,10 @@ public class NormalEnemyAgent : Agent
     [SerializeField] private NormalEnemyRewards rewardConfig;
     [SerializeField] private Animator animator;
     [SerializeField] private Rigidbody agentRigidbody;
+    
+    [Header("HCA Manager Sensor (Optional)")]
+    [Tooltip("If using HCA training, attach the ManagerObservationSensorComponent here. Leave null for standard PPO.")]
+    [SerializeField] private ManagerObservationSensorComponent managerSensorComponent;
 
     [Header("Movement Configuration")]
     [SerializeField] public float moveSpeed = 3.5f;
@@ -35,6 +39,12 @@ public class NormalEnemyAgent : Agent
     public float CurrentHealth => rl_EnemyController.enemyHP;
     public float MaxHealth => rl_EnemyController.enemyData.enemyHealth;
     public bool IsDead => rl_EnemyController.healthState.IsDead;
+    
+    /// <summary>Current behavior state string — used by ManagerObservationSensor for HCA.</summary>
+    public string CurrentBehaviorState => currentState;
+    
+    /// <summary>Current action string — used by ManagerObservationSensor for HCA.</summary>
+    public string CurrentBehaviorAction => currentAction;
     #endregion
 
     #region Private Variables
@@ -46,6 +56,9 @@ public class NormalEnemyAgent : Agent
 
     private const float DISTANCE_NORMALIZATION_FACTOR = 50f;
     private const float VELOCITY_NORMALIZATION_FACTOR = 10f;
+    private const float STAT_MAX_HEALTH = 200f;   // Medium2/Bull has the highest HP (200)
+    private const float STAT_MAX_ATTACK = 10f;    // Normalize attack stat (Bull=8, headroom to 10)
+    private const float STAT_MAX_SPEED = 10f;     // Normalize speed stat (Creep=9.0, headroom to 10)
     private const float STUCK_THRESHOLD = 0.5f;
     private const float STUCK_TIME_LIMIT = 2f;
     private const float OBSTACLE_DETECTION_DISTANCE = 2f;
@@ -66,6 +79,8 @@ public class NormalEnemyAgent : Agent
     private float chaseMovementAccumulator = 0f;
     private bool isCurrentlyChasing = false;
     private int episodeCount = 0;
+    private float previousDistanceToPatrolTarget = -1f;
+    private int obstacleCollisionCount = 0;
     private RL_TrainingPlayerSpawner cachedPlayerSpawner;
     private RL_TrainingManager cachedTrainingManager;
     #endregion
@@ -218,6 +233,21 @@ public class NormalEnemyAgent : Agent
             sensor.AddObservation(0f);
             sensor.AddObservation(0f);
         }
+
+        // Enemy stat observations (3) — enables the shared policy to differentiate enemy types
+        // The network learns conditional behavior based on the agent's own capabilities
+        if (rl_EnemyController.enemyData != null)
+        {
+            sensor.AddObservation(rl_EnemyController.enemyData.enemyHealth / STAT_MAX_HEALTH);
+            sensor.AddObservation(rl_EnemyController.enemyData.enemyAttack / STAT_MAX_ATTACK);
+            sensor.AddObservation(rl_EnemyController.enemyData.enemySpeed / STAT_MAX_SPEED);
+        }
+        else
+        {
+            sensor.AddObservation(0.5f); // Default mid-range health
+            sensor.AddObservation(0.5f); // Default mid-range attack
+            sensor.AddObservation(0.5f); // Default mid-range speed
+        }
     }
 
     public override void OnActionReceived(ActionBuffers actions)
@@ -297,6 +327,8 @@ public class NormalEnemyAgent : Agent
         var components = GetComponents<MonoBehaviour>();
         foreach (var component in components)
         {
+            if (component == null) continue;
+            
             if (component != this &&
                 (component.GetType().Name.Contains("Movement") ||
                  component.GetType().Name.Contains("Controller")) &&
@@ -352,11 +384,19 @@ public class NormalEnemyAgent : Agent
         chaseMovementAccumulator = 0f;
         isCurrentlyChasing = false;
         previousDistanceToPlayer = 0f;
+        previousDistanceToPatrolTarget = -1f;
+        obstacleCollisionCount = 0;
 
         patrolSystem?.Reset();
         movementController?.Reset();
         gameObject.SetActive(true);
         GetComponent<Collider>().enabled = true;
+        
+        // Reset HCA manager sensor engagement tracking
+        if (managerSensorComponent != null && managerSensorComponent.Sensor != null)
+        {
+            managerSensorComponent.Sensor.ResetEngagement();
+        }
     }
 
     private void ResetAgentState()
@@ -371,6 +411,9 @@ public class NormalEnemyAgent : Agent
             agentRigidbody.linearVelocity = Vector3.zero;
             agentRigidbody.angularVelocity = Vector3.zero;
         }
+
+        previousDistanceToPatrolTarget = -1f;
+        obstacleCollisionCount = 0;
     }
 
     private void RespawnAtRandomLocation()
@@ -579,6 +622,12 @@ public class NormalEnemyAgent : Agent
         // Always execute the actual attack and reward
         rl_EnemyController.AgentAttack();
         rewardConfig.AddAttackReward(this);
+        
+        // Record attack attempt for HCA manager sensor
+        if (managerSensorComponent != null && managerSensorComponent.Sensor != null)
+        {
+            managerSensorComponent.Sensor.RecordAttackAttempt(true);
+        }
     }
 
     private void ProcessAttackAction(bool shouldAttack)
@@ -688,7 +737,7 @@ public class NormalEnemyAgent : Agent
         }
         else if (currentAction == "Patrolling")
         {
-            rewardConfig.AddPatrolStepReward(this, deltaTime);
+            ProcessPatrolStepRewards(deltaTime);
         }
         else if (currentAction == "Idling")
         {
@@ -699,6 +748,43 @@ public class NormalEnemyAgent : Agent
         }
 
         ProcessPlayerVisibilityRewards();
+    }
+
+    private void ProcessPatrolStepRewards(float deltaTime)
+    {
+        if (patrolSystem == null || !patrolSystem.HasValidPatrolPoints())
+        {
+            previousDistanceToPatrolTarget = -1f;
+            rewardConfig.AddPatrolWrongStepPunishment(this);
+            return;
+        }
+
+        Vector3 patrolTarget = patrolSystem.GetCurrentPatrolTarget();
+        float currentDistance = Vector3.Distance(transform.position, patrolTarget);
+
+        if (previousDistanceToPatrolTarget < 0f)
+        {
+            previousDistanceToPatrolTarget = currentDistance;
+            return;
+        }
+
+        float distanceImprovement = previousDistanceToPatrolTarget - currentDistance;
+        float speed = agentRigidbody.linearVelocity.magnitude;
+        bool madeForwardProgress = distanceImprovement > 0.01f;
+        bool hasMovement = speed > 0.15f;
+        bool isBlocked = obstacleCollisionCount > 0 || stuckTimer > 0.25f;
+
+        if (madeForwardProgress && hasMovement && !isBlocked)
+        {
+            rewardConfig.AddPatrolStepReward(this, deltaTime);
+        }
+        else if (isBlocked || !madeForwardProgress)
+        {
+            // Punish wall-hugging or wandering that doesn't move toward patrol target.
+            rewardConfig.AddPatrolWrongStepPunishment(this);
+        }
+
+        previousDistanceToPatrolTarget = currentDistance;
     }
 
     private void ProcessChaseRewards(float deltaTimeBucket)
@@ -783,6 +869,12 @@ public class NormalEnemyAgent : Agent
     public void HandleAttackMissed()
     {
         rewardConfig.AddAttackMissedPunishment(this);
+        
+        // Record missed attack for HCA manager sensor
+        if (managerSensorComponent != null && managerSensorComponent.Sensor != null)
+        {
+            managerSensorComponent.Sensor.RecordAttackAttempt(false);
+        }
     }
 
     public void HandleKillPlayer()
@@ -825,6 +917,7 @@ public class NormalEnemyAgent : Agent
         
         if ((collisionLayer & punishableLayers) != 0)
         {
+            obstacleCollisionCount++;
             rewardConfig.AddObstaclePunishment(this, Time.deltaTime);
         }
     }
@@ -837,6 +930,17 @@ public class NormalEnemyAgent : Agent
         if ((collisionLayer & punishableLayers) != 0)
         {
             rewardConfig.AddObstaclePunishment(this, Time.deltaTime);
+        }
+    }
+
+    void OnCollisionExit(Collision collision)
+    {
+        int collisionLayer = 1 << collision.gameObject.layer;
+        int punishableLayers = LayerMask.GetMask("Wall", "Obstacle", "Environment", "Enemy");
+
+        if ((collisionLayer & punishableLayers) != 0)
+        {
+            obstacleCollisionCount = Mathf.Max(0, obstacleCollisionCount - 1);
         }
     }
     #endregion

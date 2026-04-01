@@ -1,16 +1,70 @@
-cd /d 
+# ML-Agents command cheat sheet (bash)
 
+# 1) Masuk ke project
+cd "/e/Unity Projects & Assets/Game-Thesis-Real-Time-RLAgents"
+
+# 2) Aktifkan environment
 conda activate mlagents
 
+# 3) Training baru (PPO - CPU)
 mlagents-learn config/ppo/NormalEnemyCC.yaml --run-id=NormalEnemyRun1
 
+# 4) Training baru (PPO - CUDA)
+mlagents-learn config/ppo/NormalEnemyCC.yaml --run-id=NormalEnemyRun1 --torch-device=cuda
+
+# 5) Lanjutkan training run yang sama
+# Catatan: max_steps di YAML harus lebih besar dari step terakhir
+mlagents-learn config/ppo/NormalEnemyCC.yaml --run-id=NormalEnemyRun1 --resume
+
+# 6) Force overwrite run-id lama (mulai dari awal)
+mlagents-learn config/ppo/NormalEnemyCC.yaml --run-id=NormalEnemyRun1 --force
+
+# 7) Testing/inference (tanpa update training)
+mlagents-learn config/ppo/NormalEnemyCC.yaml --run-id=NormalEnemyRun1 --resume --inference
+
+# 8) Contoh run eksperimen lain
 mlagents-learn config/ppo/NormalEnemyCC.yaml --run-id=NormalEnemyRunTest
 mlagents-learn config/ppo/NormalEnemyCC.yaml --run-id=NormalEnemyRunTest2
-tambah :
 
-mlagents-learn config/ppo/NormalEnemyCC.yaml --run-id=NormalEnemyRun1 --torch-device=cuda
---force (diakhir buat force)
+# 9) Pantau hasil training
+# tensorboard --logdir results
 
---resume (buat lanjut training tapi harus gedein step dulu)
+# 10) HCA training (CPU)
+mlagents-learn config/hca/NormalEnemyHCA.yaml --run-id=HCA_NormalEnemyRun1
 
-Raycast harus sama untuk semua agent
+# 11) HCA training (CUDA)
+mlagents-learn config/hca/NormalEnemyHCA.yaml --run-id=HCA_NormalEnemyRun1 --torch-device=cuda
+
+# 12) HCA resume
+mlagents-learn config/hca/NormalEnemyHCA.yaml --run-id=HCA_NormalEnemyRun1 --resume
+
+# 13) HCA force overwrite
+mlagents-learn config/hca/NormalEnemyHCA.yaml --run-id=HCA_NormalEnemyRun1 --force
+
+# 14) HCA inference/testing
+mlagents-learn config/hca/NormalEnemyHCA.yaml --run-id=HCA_NormalEnemyRun1 --resume --inference
+
+# 15) PPO with curriculum learning
+mlagents-learn config/ppo/NormalEnemyCC.yaml --run-id=PPO_Curriculum_v1
+
+# 16) PPO without curriculum learning
+mlagents-learn config/ppo/NormalEnemyCC_NoCurriculum.yaml --run-id=PPO_NoCurriculum_v1
+
+# 17) HCA with curriculum learning
+mlagents-learn config/hca/NormalEnemyHCA.yaml --run-id=HCA_Curriculum_v1
+
+# 18) HCA without curriculum learning
+mlagents-learn config/hca/NormalEnemyHCA_NoCurriculum.yaml --run-id=HCA_NoCurriculum_v1
+
+# 19) Example comparison runs with CUDA
+mlagents-learn config/ppo/NormalEnemyCC.yaml --run-id=PPO_Curriculum_v1 --torch-device=cuda
+mlagents-learn config/ppo/NormalEnemyCC_NoCurriculum.yaml --run-id=PPO_NoCurriculum_v1 --torch-device=cuda
+mlagents-learn config/hca/NormalEnemyHCA.yaml --run-id=HCA_Curriculum_v1 --torch-device=cuda
+mlagents-learn config/hca/NormalEnemyHCA_NoCurriculum.yaml --run-id=HCA_NoCurriculum_v1 --torch-device=cuda
+
+# 20) Optional: train multiple environments in parallel
+# mlagents-learn <config.yaml> --run-id=<run_id> --num-envs=4
+
+# Extra reminder:
+# - Jangan pakai run-id yang sama untuk eksperimen berbeda.
+# - Untuk perbandingan adil: seed, scene, agent prefab, dan max_steps disamakan.

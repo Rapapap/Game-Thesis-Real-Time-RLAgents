@@ -1,0 +1,36 @@
+# PPO Baseline Configuration — No Curriculum
+#
+# This config trains WITHOUT curriculum learning (static player only).
+# For curriculum learning, use: NormalEnemyCC.yaml
+#
+# To train:
+#   mlagents-learn config/ppo/NormalEnemyCC_NoCurriculum.yaml --run-id=PPO-NoCurriculum
+#
+# View results:
+#   tensorboard --logdir=results
+
+behaviors:
+  NormalEnemy:
+    trainer_type: ppo
+    max_steps: 5000000
+    time_horizon: 512
+    summary_freq: 10000
+    threaded: false
+    hyperparameters:
+      batch_size: 2048
+      buffer_size: 20480
+      learning_rate: 0.0001
+      beta: 0.01
+      epsilon: 0.15
+      lambd: 0.95
+      num_epoch: 4
+      learning_rate_schedule: constant
+    network_settings:
+      normalize: true
+      hidden_units: 256
+      num_layers: 3
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+

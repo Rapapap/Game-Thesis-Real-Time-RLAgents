@@ -623,6 +623,7 @@ GameObject:
   - component: {fileID: 8625117619887489572}
   - component: {fileID: 6567306619633097299}
   - component: {fileID: 8670995149941991896}
+  - component: {fileID: 8267133481825556990}
   m_Layer: 6
   m_Name: RL_Player
   m_TagString: Player
@@ -759,29 +760,30 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7a18b0845d3805b4b983ce2c974e6200, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerState: 0
-  Gear: 0
-  Data: 0
   Animator: {fileID: 0}
-  DashParticle: {fileID: 0}
-  DeathParticle: {fileID: 0}
-  HurtParticle: {fileID: 0}
-  ParrySuccessParticle: {fileID: 0}
+  smoothInputSpeed: 0.1
+  gravityValue: -9.81
+  currentInputVector: {x: 0, y: 0, z: 0}
+  velocity: 0
+  AssistRange: 0
+  dashCount: 50
+  MaxHealth: 0
+  SkillEnergy: 2
   canAttack: 1
   canParry: 1
   CanSkillAttack: 1
   canDash: 1
-  ParticleSpawnPoint: {fileID: 0}
-  velocity: 0
-  smoothInputSpeed: 0.1
-  currentInputVector: {x: 0, y: 0, z: 0}
+  playerState: 0
+  Gear: 0
+  Data: 0
   isAlive: 1
-  AssistRange: 0
-  dashCount: 50
-  MaxHealth: 0
   HasTeleported: 0
   KILLPLAYER: 0
-  SkillEnergy: 2
+  ParticleSpawnPoint: {fileID: 0}
+  DashParticle: {fileID: 0}
+  DeathParticle: {fileID: 0}
+  HurtParticle: {fileID: 0}
+  ParrySuccessParticle: {fileID: 0}
 --- !u!195 &8670995149941991896
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -804,6 +806,32 @@ NavMeshAgent:
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
+--- !u!114 &8267133481825556990
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2819751379245008023}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f50edf5902653ac4f9f30f4c72c9f667, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  manualStageOverride: -1
+  wanderSpeed: 2
+  aggressiveSpeed: 3.5
+  retreatSpeed: 3
+  wanderDirectionChangeInterval: 2
+  wanderRadius: 5
+  fleeRadius: 4
+  aggressiveApproachRange: 8
+  aggressiveStopRange: 2
+  staticAttackRange: 1.5
+  normalAttackRange: 5
+  respawnDelay: 2
+  arenaPadding: 1
+  debugCurriculum: 1
 --- !u!1 &3485249036913059050
 GameObject:
   m_ObjectHideFlags: 0

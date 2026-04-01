@@ -1,7 +1,7 @@
 behaviors:
   NormalEnemy:
     trainer_type: ppo
-    max_steps: 15000000      
+    max_steps: 5000000      
     time_horizon: 512           
     summary_freq: 10000
     threaded: false
@@ -22,3 +22,38 @@ behaviors:
       extrinsic:
         gamma: 0.99             
         strength: 1.0
+
+# Curriculum Learning: Progressive Player Difficulty
+# Stage 1 (0.0) — Static: no movement, close-range attack only
+# Stage 2 (1.0) — Passive Mobile: random wandering, normal attacks
+# Stage 3 (2.0) — Defensive: retreats from agents, attacks at range
+# Stage 4 (3.0) — Aggressive: actively chases agents, high attack frequency
+environment_parameters:
+  player_difficulty:
+    curriculum:
+      - name: Stage1_Static
+        completion_criteria:
+          measure: reward
+          behavior: NormalEnemy
+          min_lesson_length: 100
+          threshold: 100
+          signal_smoothing: true
+        value: 0.0
+      - name: Stage2_PassiveMobile
+        completion_criteria:
+          measure: reward
+          behavior: NormalEnemy
+          min_lesson_length: 100
+          threshold: 80
+          signal_smoothing: true
+        value: 1.0
+      - name: Stage3_Defensive
+        completion_criteria:
+          measure: reward
+          behavior: NormalEnemy
+          min_lesson_length: 100
+          threshold: 60
+          signal_smoothing: true
+        value: 2.0
+      - name: Stage4_Aggressive
+        value: 3.0

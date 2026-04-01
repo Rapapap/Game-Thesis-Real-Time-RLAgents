@@ -1281,6 +1281,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 102d1c754748ce348ab7360467b3a778, type: 3}
       insertIndex: -1
       addedObject: {fileID: 6315682029616046579}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 102d1c754748ce348ab7360467b3a778, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1168449742341545065}
   m_SourcePrefab: {fileID: 100100000, guid: 102d1c754748ce348ab7360467b3a778, type: 3}
 --- !u!4 &543896707441329936 stripped
 Transform:
@@ -1463,18 +1466,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 21
+    VectorObservationSize: 24
     NumStackedVectorObservations: 1
     m_ActionSpec:
-      m_NumContinuousActions: 5
-      BranchSizes: 04000000
+      m_NumContinuousActions: 3
+      BranchSizes: 02000000
     VectorActionSize: 
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 5022602860645237092, guid: 26d327c1c1e5fa8449c392453c0cfa87, type: 3}
+  m_Model: {fileID: 0}
   m_InferenceDevice: 0
-  m_BehaviorType: 2
+  m_BehaviorType: 0
   m_BehaviorName: NormalEnemy
   TeamId: 0
   m_UseChildSensors: 1
@@ -1501,6 +1504,7 @@ MonoBehaviour:
   rewardConfig: {fileID: 7144006557691622317}
   animator: {fileID: 2030732665317957927}
   agentRigidbody: {fileID: 8622400069896116343}
+  managerSensorComponent: {fileID: 1168449742341545065}
   moveSpeed: 6
   rotationSpeed: 180
   showDebugInfo: 1
@@ -1557,6 +1561,22 @@ MonoBehaviour:
   rayMissColor: {r: 1, g: 0.6612629, b: 0, a: 1}
   m_StartVerticalOffset: 0.6
   m_EndVerticalOffset: 0.6
+--- !u!114 &1168449742341545065
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 920880024737537450}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb02dc215bf6408c9144a7cab0abe2e9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  arenaHalfSizeX: 10
+  arenaHalfSizeZ: 10
+  arenaCenter: {x: 0, y: 0, z: 0}
+  showDebugGizmos: 1
 --- !u!4 &6033344054375008523 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -3189595122676651536, guid: 102d1c754748ce348ab7360467b3a778, type: 3}

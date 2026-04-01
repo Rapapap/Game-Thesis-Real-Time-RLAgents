@@ -1,0 +1,81 @@
+# HCA (Hierarchical Critic Assignment) Configuration
+# Based on: Cao & Lin (2020) - "Reinforcement Learning from Hierarchical Critics"
+#
+# To train with HCA:
+#   mlagents-learn config/hca/NormalEnemyHCA.yaml --run-id=HCA-experiment
+#
+# To compare with PPO baseline:
+#   mlagents-learn config/ppo/NormalEnemyCC.yaml --run-id=PPO-baseline
+#
+# View results side-by-side:
+#   tensorboard --logdir=results
+
+behaviors:
+  NormalEnemy:
+    trainer_type: hca
+    max_steps: 300000
+    time_horizon: 512
+    summary_freq: 10000
+    threaded: false
+
+    hyperparameters:
+      batch_size: 2048
+      buffer_size: 20480
+      learning_rate: 0.0001
+      beta: 0.01
+      epsilon: 0.15
+      lambd: 0.95
+      num_epoch: 4
+      learning_rate_schedule: constant
+
+      # --- HCA-Specific Hyperparameters ---
+      manager_hidden_units: 128     # Manager critic network width
+      manager_num_layers: 2         # Manager critic network depth
+      manager_learning_rate: 0.0003 # Manager critic learning rate
+      hca_value_method: softmax         # "max" (RLHC Eq.16) or "softmax" (HCA paper)
+      manager_obs_index: -1         # Index of manager observation sensor (-1 = last)
+
+    network_settings:
+      normalize: true
+      hidden_units: 256             # Worker critic / actor network width
+      num_layers: 3                 # Worker network depth
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+
+# Curriculum Learning: Progressive Player Difficulty
+# Stage 1 (0.0) — Static: no movement, close-range attack only
+# Stage 2 (1.0) — Passive Mobile: random wandering, normal attacks
+# Stage 3 (2.0) — Defensive: retreats from agents, attacks at range
+# Stage 4 (3.0) — Aggressive: actively chases agents, high attack frequency
+environment_parameters:
+  player_difficulty:
+    curriculum:
+      - name: Stage1_Static
+        completion_criteria:
+          measure: reward
+          behavior: NormalEnemy
+          min_lesson_length: 100
+          threshold: 30
+          signal_smoothing: true
+        value: 0.0
+      - name: Stage2_PassiveMobile
+        completion_criteria:
+          measure: reward
+          behavior: NormalEnemy
+          min_lesson_length: 100
+          threshold: 45
+          signal_smoothing: true
+        value: 1.0
+      - name: Stage3_Defensive
+        completion_criteria:
+          measure: reward
+          behavior: NormalEnemy
+          min_lesson_length: 100
+          threshold: 60
+          signal_smoothing: true
+        value: 2.0
+      - name: Stage4_Aggressive
+        value: 3.0

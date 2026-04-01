@@ -35,6 +35,7 @@ public class RL_PlayerController : MonoBehaviour
     private Vector3 initialPosition;
     private Collider[] colliders;
     private Coroutine attackCoroutine;
+    private float initialAttackRange;
 
     private void Awake()
     {
@@ -42,6 +43,7 @@ public class RL_PlayerController : MonoBehaviour
         initialPosition = transform.position;
         colliders = GetComponentsInChildren<Collider>();
         animator = GetComponent<Animator>();
+        initialAttackRange = attackRange;
     }
 
     private void Start()
@@ -89,6 +91,16 @@ public class RL_PlayerController : MonoBehaviour
             StopCoroutine(attackCoroutine);
             attackCoroutine = null;
         }
+    }
+
+    public void SetAttackRange(float newRange)
+    {
+        attackRange = Mathf.Max(0.1f, newRange);
+    }
+
+    public void ResetAttackRange()
+    {
+        attackRange = initialAttackRange;
     }
 
     public void Respawn()

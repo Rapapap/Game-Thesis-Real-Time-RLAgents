@@ -152896,7 +152896,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7853204437668021557, guid: 12473cc4d0f96fb48b488603d5514250, type: 3}
       propertyPath: m_Name
-      value: Close Camear Hard
+      value: Close Camera Hard
       objectReference: {fileID: 0}
     - target: {fileID: 7853204437668021557, guid: 12473cc4d0f96fb48b488603d5514250, type: 3}
       propertyPath: m_IsActive

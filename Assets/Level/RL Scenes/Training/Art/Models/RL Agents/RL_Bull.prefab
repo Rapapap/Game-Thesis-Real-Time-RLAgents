@@ -1367,6 +1367,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 9ca1c6ba87be9bd459b843a3f54e13f8, type: 3}
       insertIndex: -1
       addedObject: {fileID: 6693876496687100396}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 9ca1c6ba87be9bd459b843a3f54e13f8, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6867937805323260243}
   m_SourcePrefab: {fileID: 100100000, guid: 9ca1c6ba87be9bd459b843a3f54e13f8, type: 3}
 --- !u!4 &4728132633843373585 stripped
 Transform:
@@ -1549,18 +1552,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 21
+    VectorObservationSize: 24
     NumStackedVectorObservations: 1
     m_ActionSpec:
-      m_NumContinuousActions: 5
-      BranchSizes: 04000000
+      m_NumContinuousActions: 3
+      BranchSizes: 02000000
     VectorActionSize: 
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 5022602860645237092, guid: 26d327c1c1e5fa8449c392453c0cfa87, type: 3}
+  m_Model: {fileID: 0}
   m_InferenceDevice: 0
-  m_BehaviorType: 2
+  m_BehaviorType: 0
   m_BehaviorName: NormalEnemy
   TeamId: 0
   m_UseChildSensors: 1
@@ -1587,6 +1590,7 @@ MonoBehaviour:
   rewardConfig: {fileID: 2042449206248845779}
   animator: {fileID: 208499107586539375}
   agentRigidbody: {fileID: -8896010834828871572}
+  managerSensorComponent: {fileID: 6867937805323260243}
   moveSpeed: 5
   rotationSpeed: 180
   showDebugInfo: 1
@@ -1643,3 +1647,19 @@ MonoBehaviour:
   rayMissColor: {r: 1, g: 0.6612629, b: 0, a: 1}
   m_StartVerticalOffset: 0.5
   m_EndVerticalOffset: 1.7
+--- !u!114 &6867937805323260243
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5392606700045520043}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb02dc215bf6408c9144a7cab0abe2e9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  arenaHalfSizeX: 10
+  arenaHalfSizeZ: 10
+  arenaCenter: {x: 0, y: 0, z: 0}
+  showDebugGizmos: 1

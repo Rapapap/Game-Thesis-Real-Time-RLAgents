@@ -1,0 +1,274 @@
+using UnityEngine;
+using Unity.MLAgents;
+using Unity.MLAgents.Sensors;
+
+/// <summary>
+/// Manager Observation Sensor for HCA (Hierarchical Critic Assignment).
+/// 
+/// Plain C# class implementing ISensor (NOT a MonoBehaviour).
+/// Created and owned by ManagerObservationSensorComponent.
+///
+/// Provides GLOBAL (arena-wide) observations for the manager critic:
+///   [0-1]   Agent world position (normalized x, z)
+///   [2-3]   Player world position (normalized x, z)
+///   [4-5]   Relative direction agent->player (world, normalized)
+///   [6]     Player distance (normalized to arena diagonal)
+///   [7]     Agent health ratio
+///   [8-12]  Behavior state one-hot (patrolling, chasing, attacking, fleeing, idle)
+///   [13]    Arena quadrant (0-3, normalized to 0-1)
+///   [14]    Episode time pressure (stepCount / maxStep)
+///   [15]    Engagement success ratio
+///
+/// Based on: Cao and Lin (2020) - "Reinforcement Learning from Hierarchical Critics"
+/// </summary>
+public class ManagerObservationSensor : ISensor
+{
+    private const int ObservationSize = 16;
+    private const string SensorName = "ManagerObservation";
+    private const int EngagementWindow = 20;
+
+    // References passed from SensorComponent
+    private readonly Transform agentTransform;
+    private readonly NormalEnemyAgent agent;
+    private readonly RL_EnemyController controller;
+
+    // Arena config
+    private Vector3 arenaCenter;
+    private float arenaHalfSizeX;
+    private float arenaHalfSizeZ;
+    private float arenaDiagonal;
+
+    // Engagement tracking
+    private int recentAttackAttempts;
+    private int recentAttackHits;
+
+    // Cached player
+    private Transform cachedPlayerTransform;
+    private float lastPlayerSearchTime;
+
+    private readonly float[] observations = new float[ObservationSize];
+
+    public ManagerObservationSensor(
+        Transform agentTransform,
+        NormalEnemyAgent agent,
+        RL_EnemyController controller,
+        Vector3 arenaCenter,
+        float arenaHalfSizeX,
+        float arenaHalfSizeZ)
+    {
+        this.agentTransform = agentTransform;
+        this.agent = agent;
+        this.controller = controller;
+        this.arenaCenter = arenaCenter;
+        this.arenaHalfSizeX = arenaHalfSizeX;
+        this.arenaHalfSizeZ = arenaHalfSizeZ;
+        this.arenaDiagonal = Mathf.Sqrt(arenaHalfSizeX * arenaHalfSizeX + arenaHalfSizeZ * arenaHalfSizeZ) * 2f;
+    }
+
+    public void UpdateArenaBounds(Vector3 center, float halfX, float halfZ)
+    {
+        arenaCenter = center;
+        arenaHalfSizeX = halfX;
+        arenaHalfSizeZ = halfZ;
+        arenaDiagonal = Mathf.Sqrt(halfX * halfX + halfZ * halfZ) * 2f;
+    }
+
+    public void RecordAttackAttempt(bool hit)
+    {
+        recentAttackAttempts++;
+        if (hit) recentAttackHits++;
+
+        if (recentAttackAttempts > EngagementWindow)
+        {
+            recentAttackAttempts = Mathf.CeilToInt(recentAttackAttempts * 0.5f);
+            recentAttackHits = Mathf.CeilToInt(recentAttackHits * 0.5f);
+        }
+    }
+
+    public void ResetEngagement()
+    {
+        recentAttackAttempts = 0;
+        recentAttackHits = 0;
+    }
+
+    // ---- ISensor Implementation ----
+
+    public ObservationSpec GetObservationSpec()
+    {
+        return ObservationSpec.Vector(ObservationSize);
+    }
+
+    public int Write(ObservationWriter writer)
+    {
+        CollectObservations();
+        for (int i = 0; i < ObservationSize; i++)
+        {
+            writer[i] = observations[i];
+        }
+        return ObservationSize;
+    }
+
+    public byte[] GetCompressedObservation()
+    {
+        return null;
+    }
+
+    public CompressionSpec GetCompressionSpec()
+    {
+        return CompressionSpec.Default();
+    }
+
+    public string GetName()
+    {
+        return SensorName;
+    }
+
+    public void Update() { }
+
+    public void Reset()
+    {
+        ResetEngagement();
+        System.Array.Clear(observations, 0, ObservationSize);
+    }
+
+    // ---- Observation Collection ----
+
+    private void CollectObservations()
+    {
+        // Guard: if the agent transform was destroyed, write zeros
+        if (agentTransform == null)
+        {
+            System.Array.Clear(observations, 0, ObservationSize);
+            return;
+        }
+
+        int idx = 0;
+
+        // [0-1] Agent world position (normalized to arena bounds)
+        Vector3 agentRelPos = agentTransform.position - arenaCenter;
+        observations[idx++] = Mathf.Clamp(agentRelPos.x / arenaHalfSizeX, -1f, 1f);
+        observations[idx++] = Mathf.Clamp(agentRelPos.z / arenaHalfSizeZ, -1f, 1f);
+
+        // [2-6] Player-related global observations
+        Transform player = FindPlayer();
+        if (player != null)
+        {
+            Vector3 playerRelPos = player.position - arenaCenter;
+            observations[idx++] = Mathf.Clamp(playerRelPos.x / arenaHalfSizeX, -1f, 1f);
+            observations[idx++] = Mathf.Clamp(playerRelPos.z / arenaHalfSizeZ, -1f, 1f);
+
+            Vector3 relativeDir = player.position - agentTransform.position;
+            float distance = relativeDir.magnitude;
+
+            if (distance > 0.01f)
+            {
+                relativeDir = relativeDir.normalized;
+                observations[idx++] = relativeDir.x;
+                observations[idx++] = relativeDir.z;
+            }
+            else
+            {
+                observations[idx++] = 0f;
+                observations[idx++] = 0f;
+            }
+
+            observations[idx++] = Mathf.Clamp01(distance / arenaDiagonal);
+        }
+        else
+        {
+            observations[idx++] = 0f;
+            observations[idx++] = 0f;
+            observations[idx++] = 0f;
+            observations[idx++] = 0f;
+            observations[idx++] = 1f;
+        }
+
+        // [7] Agent health ratio
+        if (controller != null && controller.enemyData != null)
+        {
+            observations[idx++] = Mathf.Clamp01(controller.enemyHP / controller.enemyData.enemyHealth);
+        }
+        else
+        {
+            observations[idx++] = 1f;
+        }
+
+        // [8-12] Behavior state one-hot: patrolling, chasing, attacking, fleeing, idle
+        bool isPatrolling = false, isChasing = false, isAttacking = false, isFleeing = false, isIdle = false;
+
+        if (agent != null && !agent.IsDead)
+        {
+            string state = agent.CurrentBehaviorState;
+            string action = agent.CurrentBehaviorAction;
+
+            if (state == "Attacking" || action == "Attacking")
+                isAttacking = true;
+            else if (state == "Fleeing" || action == "Fleeing")
+                isFleeing = true;
+            else if (state == "Chasing" || action == "Chasing")
+                isChasing = true;
+            else if (state == "Patrolling" || action == "Patrolling")
+                isPatrolling = true;
+            else
+                isIdle = true;
+        }
+
+        observations[idx++] = isPatrolling ? 1f : 0f;
+        observations[idx++] = isChasing ? 1f : 0f;
+        observations[idx++] = isAttacking ? 1f : 0f;
+        observations[idx++] = isFleeing ? 1f : 0f;
+        observations[idx++] = isIdle ? 1f : 0f;
+
+        // [13] Arena quadrant (0-3, normalized)
+        int quadrant = GetArenaQuadrant(agentRelPos);
+        observations[idx++] = quadrant / 3f;
+
+        // [14] Episode time pressure
+        if (agent != null)
+        {
+            float maxStep = agent.MaxStep > 0 ? agent.MaxStep : 5000f;
+            observations[idx++] = Mathf.Clamp01(agent.StepCount / maxStep);
+        }
+        else
+        {
+            observations[idx++] = 0f;
+        }
+
+        // [15] Engagement success ratio
+        float engagementRatio = recentAttackAttempts > 0
+            ? (float)recentAttackHits / recentAttackAttempts
+            : 0f;
+        observations[idx] = engagementRatio;
+    }
+
+    private int GetArenaQuadrant(Vector3 relativePosition)
+    {
+        if (relativePosition.x >= 0 && relativePosition.z >= 0) return 0;
+        if (relativePosition.x < 0 && relativePosition.z >= 0) return 1;
+        if (relativePosition.x < 0 && relativePosition.z < 0) return 2;
+        return 3;
+    }
+
+    private Transform FindPlayer()
+    {
+        if (cachedPlayerTransform != null && cachedPlayerTransform.gameObject.activeInHierarchy)
+        {
+            return cachedPlayerTransform;
+        }
+
+        if (Time.time - lastPlayerSearchTime > 1f)
+        {
+            lastPlayerSearchTime = Time.time;
+
+            var playerObj = GameObject.FindGameObjectWithTag("Player");
+            if (playerObj != null)
+            {
+                cachedPlayerTransform = playerObj.transform;
+                return cachedPlayerTransform;
+            }
+        }
+
+        return cachedPlayerTransform;
+    }
+}
+
