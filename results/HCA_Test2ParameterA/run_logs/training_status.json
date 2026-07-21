@@ -1,0 +1,59 @@
+{
+    "player_difficulty": {
+        "lesson_num": 0
+    },
+    "NormalEnemy": {
+        "checkpoints": [
+            {
+                "steps": 499971,
+                "file_path": "results\\HCA_Test2ParameterA\\NormalEnemy\\NormalEnemy-499971.onnx",
+                "reward": 0.39169576826971025,
+                "creation_time": 1778051512.5591984,
+                "auxillary_file_paths": [
+                    "results\\HCA_Test2ParameterA\\NormalEnemy\\NormalEnemy-499971.pt"
+                ]
+            },
+            {
+                "steps": 999931,
+                "file_path": "results\\HCA_Test2ParameterA\\NormalEnemy\\NormalEnemy-999931.onnx",
+                "reward": 1.3747188663860932,
+                "creation_time": 1778057527.4553916,
+                "auxillary_file_paths": [
+                    "results\\HCA_Test2ParameterA\\NormalEnemy\\NormalEnemy-999931.pt"
+                ]
+            },
+            {
+                "steps": 1499918,
+                "file_path": "results\\HCA_Test2ParameterA\\NormalEnemy\\NormalEnemy-1499918.onnx",
+                "reward": 1.344053199190239,
+                "creation_time": 1778075848.5394747,
+                "auxillary_file_paths": [
+                    "results\\HCA_Test2ParameterA\\NormalEnemy\\NormalEnemy-1499918.pt"
+                ]
+            },
+            {
+                "steps": 1500322,
+                "file_path": "results\\HCA_Test2ParameterA\\NormalEnemy\\NormalEnemy-1500322.onnx",
+                "reward": 1.3510401056766634,
+                "creation_time": 1778075849.0510905,
+                "auxillary_file_paths": [
+                    "results\\HCA_Test2ParameterA\\NormalEnemy\\NormalEnemy-1500322.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 1500322,
+            "file_path": "results\\HCA_Test2ParameterA\\NormalEnemy.onnx",
+            "reward": 1.3510401056766634,
+            "creation_time": 1778075849.0510905,
+            "auxillary_file_paths": [
+                "results\\HCA_Test2ParameterA\\NormalEnemy\\NormalEnemy-1500322.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.1.0",
+        "torch_version": "2.2.2+cu121"
+    }
+}

@@ -35,7 +35,7 @@ public class NormalEnemyAgent : Agent
     #endregion
 
     #region Public Properties
-    public static bool TrainingActive = true;
+    public static bool TrainingActive = false;
     public float CurrentHealth => rl_EnemyController.enemyHP;
     public float MaxHealth => rl_EnemyController.enemyData.enemyHealth;
     public bool IsDead => rl_EnemyController.healthState.IsDead;
@@ -83,6 +83,10 @@ public class NormalEnemyAgent : Agent
     private int obstacleCollisionCount = 0;
     private RL_TrainingPlayerSpawner cachedPlayerSpawner;
     private RL_TrainingManager cachedTrainingManager;
+
+    // Prevention of reward oscillation exploits
+    private bool hasDetectedPlayerThisEpisode = false;
+    private bool hasChasedPlayerThisEpisode = false;
     #endregion
 
     #region Agent Lifecycle
@@ -117,6 +121,9 @@ public class NormalEnemyAgent : Agent
         cachedPlayerSpawner = FindFirstObjectByType<RL_TrainingPlayerSpawner>();
         cachedTrainingManager = FindFirstObjectByType<RL_TrainingManager>();
         
+        // Auto-detect training mode: Only activate training loop behavior if RL_TrainingManager is present
+        TrainingActive = (cachedTrainingManager != null);
+        
         isInitialized = true;
     }
 
@@ -133,6 +140,10 @@ public class NormalEnemyAgent : Agent
         // Only reset if in training mode or episode reset is explicitly enabled
         if (TrainingActive || enableEpisodeReset)
         {
+            // Reset reward exploit flags
+            hasDetectedPlayerThisEpisode = false;
+            hasChasedPlayerThisEpisode = false;
+
             // Reactivate if deactivated on death
             if (!gameObject.activeSelf)
                 gameObject.SetActive(true);
@@ -531,7 +542,11 @@ public class NormalEnemyAgent : Agent
 
         if (!isCurrentlyChasing)
         {
-            rewardConfig.AddChasePlayerReward(this);
+            if (!hasChasedPlayerThisEpisode)
+            {
+                rewardConfig.AddChasePlayerReward(this);
+                hasChasedPlayerThisEpisode = true;
+            }
             isCurrentlyChasing = true;
         }
 
@@ -698,7 +713,11 @@ public class NormalEnemyAgent : Agent
         playerDetection.UpdatePlayerDetection(transform.position);
         if (playerDetection.IsPlayerVisible && !wasPlayerVisible)
         {
-            rewardConfig.AddDetectionReward(this);
+            if (!hasDetectedPlayerThisEpisode)
+            {
+                rewardConfig.AddDetectionReward(this);
+                hasDetectedPlayerThisEpisode = true;
+            }
         }
         wasPlayerVisible = playerDetection.IsPlayerVisible;
 
@@ -860,7 +879,11 @@ public class NormalEnemyAgent : Agent
         if (!isCurrentlyChasing && playerDetection.IsPlayerVisible)
         {
             isCurrentlyChasing = true;
-            rewardConfig.AddChasePlayerReward(this);
+            if (!hasChasedPlayerThisEpisode)
+            {
+                rewardConfig.AddChasePlayerReward(this);
+                hasChasedPlayerThisEpisode = true;
+            }
         }
         
         playerDetection.UpdatePlayerDetection(transform.position);

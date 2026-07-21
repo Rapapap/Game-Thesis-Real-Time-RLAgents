@@ -13,7 +13,7 @@
 behaviors:
   NormalEnemy:
     trainer_type: hca
-    max_steps: 300000
+    max_steps: 1500000
     time_horizon: 512
     summary_freq: 10000
     threaded: false
@@ -21,7 +21,10 @@ behaviors:
     hyperparameters:
       batch_size: 2048
       buffer_size: 20480
+#      batch_size: 1024          # Reduced batch size for faster updates
+#      buffer_size: 10240       # Reduced buffer size for quicker learning
       learning_rate: 0.0001
+#      learning_rate: 0.0003     # Increased learning rate for faster convergence
       beta: 0.01
       epsilon: 0.15
       lambd: 0.95
@@ -58,7 +61,8 @@ environment_parameters:
           measure: reward
           behavior: NormalEnemy
           min_lesson_length: 100
-          threshold: 30
+          threshold: 1.0
+          #          threshold: 30
           signal_smoothing: true
         value: 0.0
       - name: Stage2_PassiveMobile
@@ -66,7 +70,8 @@ environment_parameters:
           measure: reward
           behavior: NormalEnemy
           min_lesson_length: 100
-          threshold: 45
+          threshold: 1.2
+          #          threshold: 45
           signal_smoothing: true
         value: 1.0
       - name: Stage3_Defensive
@@ -74,7 +79,8 @@ environment_parameters:
           measure: reward
           behavior: NormalEnemy
           min_lesson_length: 100
-          threshold: 60
+          threshold: 1.4
+#          threshold: 60
           signal_smoothing: true
         value: 2.0
       - name: Stage4_Aggressive

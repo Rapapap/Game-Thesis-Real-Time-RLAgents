@@ -13,15 +13,18 @@
 behaviors:
   NormalEnemy:
     trainer_type: hca
-    max_steps: 5000000
+    max_steps: 1500000
     time_horizon: 512
     summary_freq: 10000
     threaded: false
 
     hyperparameters:
-      batch_size: 2048
-      buffer_size: 20480
-      learning_rate: 0.0001
+#    batch_size: 2048
+#    buffer_size: 20480
+      batch_size: 1024          # Reduced batch size for faster updates
+      buffer_size: 10240       # Reduced buffer size for quicker learning
+#     learning_rate: 0.0001
+      learning_rate: 0.0003     # Increased learning rate for faster convergence
       beta: 0.01
       epsilon: 0.15
       lambd: 0.95
@@ -31,7 +34,8 @@ behaviors:
       # --- HCA-Specific Hyperparameters ---
       manager_hidden_units: 128     # Manager critic network width
       manager_num_layers: 2         # Manager critic network depth
-      manager_learning_rate: 0.0003 # Manager critic learning rate
+#     manager_learning_rate: 0.0003 # Manager critic learning rate
+      manager_learning_rate: 0.0005 # Increased manager learning rate for faster adaptation
       hca_value_method: softmax     # "max" (RLHC Eq.16) or "softmax" (HCA paper)
       manager_obs_index: -1         # Index of manager observation sensor (-1 = last)
 

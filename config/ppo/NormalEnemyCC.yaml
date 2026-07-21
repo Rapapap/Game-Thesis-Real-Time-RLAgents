@@ -1,7 +1,7 @@
 behaviors:
   NormalEnemy:
     trainer_type: ppo
-    max_steps: 5000000      
+    max_steps: 5000000
     time_horizon: 512           
     summary_freq: 10000
     threaded: false
@@ -36,7 +36,7 @@ environment_parameters:
           measure: reward
           behavior: NormalEnemy
           min_lesson_length: 100
-          threshold: 100
+          threshold: 1.0
           signal_smoothing: true
         value: 0.0
       - name: Stage2_PassiveMobile
@@ -44,7 +44,7 @@ environment_parameters:
           measure: reward
           behavior: NormalEnemy
           min_lesson_length: 100
-          threshold: 80
+          threshold: 1.2
           signal_smoothing: true
         value: 1.0
       - name: Stage3_Defensive
@@ -52,7 +52,7 @@ environment_parameters:
           measure: reward
           behavior: NormalEnemy
           min_lesson_length: 100
-          threshold: 60
+          threshold: 1.4
           signal_smoothing: true
         value: 2.0
       - name: Stage4_Aggressive

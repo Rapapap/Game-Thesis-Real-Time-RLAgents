@@ -450,10 +450,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   KillPlayerReward: 1
   DiedByPlayerPunishment: -1
-  DetectPlayerReward: 0.8
+  DetectPlayerReward: 0.1
   PatrolCompleteReward: 1
-  ChasePlayerReward: 0.9
-  AttackPlayerReward: 1
+  ChasePlayerReward: 0.05
+  AttackPlayerReward: 0.2
   HitByPlayerPunishment: -0.7
   PatrolStepReward: 0.005
   PatrolWrongStepPunishment: -0.01

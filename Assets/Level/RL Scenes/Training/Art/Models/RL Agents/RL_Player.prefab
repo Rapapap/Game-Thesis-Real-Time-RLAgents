@@ -718,9 +718,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   isRL_TrainingTarget: 1
   maxHealth: 20
-  attackInterval: 8
+  attackInterval: 1
   attackDamage: 80
-  attackRange: 1.5
+  attackRange: 2
   invincibilityDuration: 0.2
   healthBarSlider: {fileID: 750789314923456546}
   animator: {fileID: 8625117619887489572}
@@ -819,12 +819,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   manualStageOverride: -1
-  wanderSpeed: 2
-  aggressiveSpeed: 3.5
+  wanderSpeed: 3
+  aggressiveSpeed: 4
   retreatSpeed: 3
   wanderDirectionChangeInterval: 2
-  wanderRadius: 5
-  fleeRadius: 4
+  wanderRadius: 10
+  fleeRadius: 6
   aggressiveApproachRange: 8
   aggressiveStopRange: 2
   staticAttackRange: 1.5

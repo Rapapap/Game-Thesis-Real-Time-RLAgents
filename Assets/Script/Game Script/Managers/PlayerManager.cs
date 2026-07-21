@@ -14,8 +14,16 @@ public class PlayerManager : MonoBehaviour
     private void Awake()
     {
         gm = GameManager.Instance;
+        if (gm == null) { enabled = false; return; }
         playerData = gm.LoadPlayer();
         weaponData = gm.LoadWeapon();
+
+        if (playerData == null) 
+        { 
+            enabled = false; 
+            return; 
+        }
+
         IsMan = playerData.isMan;
         PlayerSpawn();
     }

@@ -18,7 +18,8 @@ public class CameraRotator : MonoBehaviour
         if (playerController != null)
         {
             playerController.currentInputVector = Vector3.zero;
-            playerController.Animator.SetFloat("Speed", 0);
+            if (playerController.Animator != null)
+                playerController.Animator.SetFloat("Speed", 0);
         }
         else
             playerController = PlayerController.Instance;
@@ -27,23 +28,26 @@ public class CameraRotator : MonoBehaviour
             isPlayerDetected = true;
             StartCoroutine(SwitchCamera());
         }
-        if (rotatorCamera.enabled)
+        if (rotatorCamera != null && rotatorCamera.enabled)
             transform.Rotate(0, speed * Time.deltaTime, 0);
     }
 
     IEnumerator SwitchCamera()
     {
-        mainCamera.enabled = false;
-        rotatorCamera.enabled = true;
+        if (mainCamera != null) mainCamera.enabled = false;
+        if (rotatorCamera != null) rotatorCamera.enabled = true;
         yield return new WaitForSeconds(duration);
         ReturnToMainCamera();
     }
 
     void ReturnToMainCamera()
     {
-        mainCamera.enabled = true;
-        rotatorCamera.enabled = false;
-        playerController.HasTeleported = true;
+        if (mainCamera != null) mainCamera.enabled = true;
+        if (rotatorCamera != null) rotatorCamera.enabled = false;
+        
+        if (playerController != null)
+            playerController.HasTeleported = true;
+            
         Destroy(gameObject, 1);
     } 
 }

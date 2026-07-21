@@ -206,7 +206,7 @@ public class RL_TrainingManager : MonoBehaviour
                     // Ensure agent is active before ending episode (should be, but just in case)
                     if (!agent.gameObject.activeInHierarchy)
                         agent.gameObject.SetActive(true);
-                        
+
                     agent.EndEpisode();
                 }
                 catch (System.Exception e)

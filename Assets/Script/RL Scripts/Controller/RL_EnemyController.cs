@@ -773,7 +773,7 @@ public class RL_EnemyController : MonoBehaviour
     {
         if (healthState.IsDead) return;
         healthState.SetDead(true);
-        
+
         SetAnimationState(dead: true);
         PlayDeathSound();
 

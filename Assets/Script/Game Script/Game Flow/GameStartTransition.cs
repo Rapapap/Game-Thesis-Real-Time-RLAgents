@@ -17,6 +17,11 @@ public class GameStartTransition : MonoBehaviour
     void Start()
     {
         player = PlayerController.Instance;
+        if (player == null)
+        {
+            enabled = false;
+            return;
+        }
         isAlive = player.isAlive;
         StartCoroutine(StartTransition());
     }

@@ -26,6 +26,11 @@ public class P_Hud_Manager : MonoBehaviour
     private void Start()
     {
         Player = PlayerController.Instance;
+        if (Player == null) 
+        {
+            enabled = false; 
+            return; 
+        }
         SetMaxHealth();
         gameProgression = GameProgression.Instance;
     }

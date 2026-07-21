@@ -10,6 +10,7 @@ public class EndingManager : MonoBehaviour
     private bool End = false;
     void Update()
     {
+        if (PlayerController.Instance == null || GameProgression.Instance == null) return;
         if ((!PlayerController.Instance.isAlive || GameProgression.Instance.IsBossDead) && !End)
         {
             StartCoroutine(EndingScreenOn());

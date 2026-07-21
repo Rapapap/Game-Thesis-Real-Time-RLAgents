@@ -25,7 +25,7 @@ public class NormalEnemyRewards : MonoBehaviour
     public float DoesntChasePlayerPunishment = -0.005f;
     public float FailApproachPlayerPunishment = -0.005f;
     public float DoesntAttackInstantlyPunishment = -0.02f;
-    public float AttackMissedPunishment = -0.05f;
+    public float AttackMissedPunishment = -0.35f;
 
     #endregion
 
