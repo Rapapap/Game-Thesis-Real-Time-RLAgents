@@ -125,7 +125,6 @@ class TorchHCAOptimizer(TorchOptimizer):
             network_settings=manager_network_settings,
         )
         self._manager_critic.to(default_device())
-        params += list(self._manager_critic.parameters())
 
         # ---- Learning rate decay (same schedule as PPO) ----
         self.decay_learning_rate = ModelUtils.DecayedValue(
@@ -147,9 +146,14 @@ class TorchHCAOptimizer(TorchOptimizer):
             self.trainer_settings.max_steps,
         )
 
-        # Single optimizer for all parameters (actor + worker critic + manager critic)
+        # Separate optimizers: actor + worker critic share PPO's optimizer, manager critic is isolated.
         self.optimizer = torch.optim.Adam(
             params, lr=self.trainer_settings.hyperparameters.learning_rate
+        )
+        # Manager critic gets its own learning rate so HCA can tune it independently.
+        self.manager_optimizer = torch.optim.Adam(
+            self._manager_critic.parameters(),
+            lr=self.hyperparameters.manager_learning_rate,
         )
 
         self.stats_name_to_update_name = {
@@ -182,7 +186,11 @@ class TorchHCAOptimizer(TorchOptimizer):
         all_obs = ObsUtil.from_buffer(buffer, n_obs)
         worker_obs_bufs = [all_obs[i] for i in self.worker_obs_indices]
 
-        for obs_buf, enc in zip(worker_obs_bufs, self._worker_critic.network_body.observation_encoder.processors):
+        processors = self._worker_critic.network_body.observation_encoder.processors
+        assert len(worker_obs_bufs) == len(processors), (
+            f"Mismatch between worker obs buffers ({len(worker_obs_bufs)}) and encoder processors ({len(processors)})"
+        )
+        for obs_buf, enc in zip(worker_obs_bufs, processors):
             if isinstance(enc, VectorInput):
                 enc.update_normalization(torch.as_tensor(obs_buf.to_ndarray()))
 
@@ -232,6 +240,9 @@ class TorchHCAOptimizer(TorchOptimizer):
         for name in worker_values:
             w_val = worker_values[name]
             m_val = manager_values[name]
+            assert w_val.shape == m_val.shape, (
+                f"Shape mismatch between worker value {w_val.shape} and manager value {m_val.shape}"
+            )
 
             if method == "max":
                 # RLHC Eq. 16: element-wise max
@@ -420,8 +431,10 @@ class TorchHCAOptimizer(TorchOptimizer):
         # Optimize
         ModelUtils.update_learning_rate(self.optimizer, decay_lr)
         self.optimizer.zero_grad()
+        self.manager_optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+        self.manager_optimizer.step()
 
         update_stats = {
             "Losses/Policy Loss": torch.abs(policy_loss).item(),
@@ -429,6 +442,7 @@ class TorchHCAOptimizer(TorchOptimizer):
             "Losses/HCA Worker Value Loss": worker_value_loss.item(),
             "Losses/HCA Manager Value Loss": manager_value_loss.item(),
             "Policy/Learning Rate": decay_lr,
+            "Policy/Manager Learning Rate": self.hyperparameters.manager_learning_rate,
             "Policy/Epsilon": decay_eps,
             "Policy/Beta": decay_bet,
         }
@@ -440,8 +454,8 @@ class TorchHCAOptimizer(TorchOptimizer):
             "Optimizer:value_optimizer": self.optimizer,
             "Optimizer:worker_critic": self._worker_critic,
             "Optimizer:manager_critic": self._manager_critic,
+            "Optimizer:manager_value_optimizer": self.manager_optimizer,
         }
         for reward_provider in self.reward_signals.values():
             modules.update(reward_provider.get_modules())
         return modules
-

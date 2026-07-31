@@ -35,7 +35,7 @@ behaviors:
       manager_hidden_units: 128     # Manager critic network width
       manager_num_layers: 2         # Manager critic network depth
       manager_learning_rate: 0.0003 # Manager critic learning rate
-      hca_value_method: softmax         # "max" (RLHC Eq.16) or "softmax" (HCA paper)
+      hca_value_method: max             # "max" (RLHC Eq.16) or "softmax" (HCA paper)
       manager_obs_index: -1         # Index of manager observation sensor (-1 = last)
 
     network_settings:
@@ -49,10 +49,10 @@ behaviors:
         strength: 1.0
 
 # Curriculum Learning: Progressive Player Difficulty
-# Stage 1 (0.0) — Static: no movement, close-range attack only
-# Stage 2 (1.0) — Passive Mobile: random wandering, normal attacks
-# Stage 3 (2.0) — Defensive: retreats from agents, attacks at range
-# Stage 4 (3.0) — Aggressive: actively chases agents, high attack frequency
+# Stage 1 (0.0) - Static: no movement, close-range attack only
+# Stage 2 (1.0) - Passive Mobile: random wandering, normal attacks
+# Stage 3 (2.0) - Defensive: retreats from agents, attacks at range
+# Stage 4 (3.0) - Aggressive: actively chases agents, high attack frequency
 environment_parameters:
   player_difficulty:
     curriculum:

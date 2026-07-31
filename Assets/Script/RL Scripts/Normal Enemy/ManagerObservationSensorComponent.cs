@@ -26,6 +26,10 @@ public class ManagerObservationSensorComponent : SensorComponent
     [Tooltip("Center offset of the arena (if arena is not at world origin).")]
     [SerializeField] private Vector3 arenaCenter = Vector3.zero;
     
+    [Header("Observation Mode")]
+    [Tooltip("If true, uses legacy observation mode (health ratio at idx 7, ordinal quadrant at idx 13). If false (default), uses redesigned observation mode (center distance at idx 7, border proximity at idx 13).")]
+    [SerializeField] private bool useFallbackLegacyObservations = false;
+    
     [Header("Debug")]
     [SerializeField] private bool showDebugGizmos;
 
@@ -45,7 +49,8 @@ public class ManagerObservationSensorComponent : SensorComponent
         // Create plain C# sensor (not a MonoBehaviour — no Inspector serialization issues)
         sensor = new ManagerObservationSensor(
             transform, agent, controller,
-            arenaCenter, arenaHalfSizeX, arenaHalfSizeZ
+            arenaCenter, arenaHalfSizeX, arenaHalfSizeZ,
+            useFallbackLegacyObservations
         );
         
         return new ISensor[] { sensor };

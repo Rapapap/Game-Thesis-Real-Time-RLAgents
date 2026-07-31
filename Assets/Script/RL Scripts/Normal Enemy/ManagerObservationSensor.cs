@@ -13,9 +13,9 @@ using Unity.MLAgents.Sensors;
 ///   [2-3]   Player world position (normalized x, z)
 ///   [4-5]   Relative direction agent->player (world, normalized)
 ///   [6]     Player distance (normalized to arena diagonal)
-///   [7]     Agent health ratio
+///   [7]     Agent distance from arena center (normalized to half-diagonal)
 ///   [8-12]  Behavior state one-hot (patrolling, chasing, attacking, fleeing, idle)
-///   [13]    Arena quadrant (0-3, normalized to 0-1)
+///   [13]    Arena border proximity (normalized 0 to 1, boundary awareness)
 ///   [14]    Episode time pressure (stepCount / maxStep)
 ///   [15]    Engagement success ratio
 ///
@@ -48,13 +48,16 @@ public class ManagerObservationSensor : ISensor
 
     private readonly float[] observations = new float[ObservationSize];
 
+    private readonly bool useFallbackLegacy;
+
     public ManagerObservationSensor(
         Transform agentTransform,
         NormalEnemyAgent agent,
         RL_EnemyController controller,
         Vector3 arenaCenter,
         float arenaHalfSizeX,
-        float arenaHalfSizeZ)
+        float arenaHalfSizeZ,
+        bool useFallbackLegacy = false)
     {
         this.agentTransform = agentTransform;
         this.agent = agent;
@@ -63,6 +66,7 @@ public class ManagerObservationSensor : ISensor
         this.arenaHalfSizeX = arenaHalfSizeX;
         this.arenaHalfSizeZ = arenaHalfSizeZ;
         this.arenaDiagonal = Mathf.Sqrt(arenaHalfSizeX * arenaHalfSizeX + arenaHalfSizeZ * arenaHalfSizeZ) * 2f;
+        this.useFallbackLegacy = useFallbackLegacy;
     }
 
     public void UpdateArenaBounds(Vector3 center, float halfX, float halfZ)
@@ -183,14 +187,18 @@ public class ManagerObservationSensor : ISensor
             observations[idx++] = 1f;
         }
 
-        // [7] Agent health ratio
-        if (controller != null && controller.enemyData != null)
+        // [7] Agent distance from arena center (Redesigned) or Health ratio (Legacy Fallback)
+        if (useFallbackLegacy)
         {
-            observations[idx++] = Mathf.Clamp01(controller.enemyHP / controller.enemyData.enemyHealth);
+            if (controller != null && controller.enemyData != null)
+                observations[idx++] = Mathf.Clamp01(controller.enemyHP / controller.enemyData.enemyHealth);
+            else
+                observations[idx++] = 1f;
         }
         else
         {
-            observations[idx++] = 1f;
+            float distFromCenter = agentRelPos.magnitude;
+            observations[idx++] = Mathf.Clamp01(distFromCenter / (arenaDiagonal * 0.5f));
         }
 
         // [8-12] Behavior state one-hot: patrolling, chasing, attacking, fleeing, idle
@@ -219,9 +227,17 @@ public class ManagerObservationSensor : ISensor
         observations[idx++] = isFleeing ? 1f : 0f;
         observations[idx++] = isIdle ? 1f : 0f;
 
-        // [13] Arena quadrant (0-3, normalized)
-        int quadrant = GetArenaQuadrant(agentRelPos);
-        observations[idx++] = quadrant / 3f;
+        // [13] Arena border proximity (Redesigned) or Quadrant ordinal (Legacy Fallback)
+        if (useFallbackLegacy)
+        {
+            int quadrant = GetArenaQuadrant(agentRelPos);
+            observations[idx++] = quadrant / 3f;
+        }
+        else
+        {
+            float borderProximity = Mathf.Max(Mathf.Abs(agentRelPos.x / arenaHalfSizeX), Mathf.Abs(agentRelPos.z / arenaHalfSizeZ));
+            observations[idx++] = Mathf.Clamp01(borderProximity);
+        }
 
         // [14] Episode time pressure
         if (agent != null)

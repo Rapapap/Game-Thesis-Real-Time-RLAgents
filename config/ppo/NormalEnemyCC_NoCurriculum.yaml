@@ -1,4 +1,4 @@
-# PPO Baseline Configuration — No Curriculum
+# PPO Baseline Configuration - No Curriculum
 #
 # This config trains WITHOUT curriculum learning (static player only).
 # For curriculum learning, use: NormalEnemyCC.yaml
@@ -12,14 +12,14 @@
 behaviors:
   NormalEnemy:
     trainer_type: ppo
-    max_steps: 5000000
+    max_steps: 10000000
     time_horizon: 512
     summary_freq: 10000
     threaded: false
     hyperparameters:
       batch_size: 2048
       buffer_size: 20480
-      learning_rate: 0.0001
+      learning_rate: 0.0005
       beta: 0.01
       epsilon: 0.15
       lambd: 0.95
