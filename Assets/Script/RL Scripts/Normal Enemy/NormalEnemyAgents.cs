@@ -153,7 +153,7 @@ public class NormalEnemyAgent : Agent
 
             ResetForNewEpisode();
             RespawnAtRandomLocation();
-            ResetTrainingArena();
+            // NOTE: Target spawner resets are managed globally by RL_TrainingManager to avoid redundant N-times target destroy/recreate per frame.
             rl_EnemyController.ShowHealthBar();
 
             // Reset controller combat/knockback states
@@ -265,7 +265,7 @@ public class NormalEnemyAgent : Agent
     {
         if (!isInitialized || rl_EnemyController == null || IsDead || !isActiveAndEnabled) return;
 
-        if (IsDebugEnabled)
+        if (IsDebugEnabled && debugDisplay != null)
         {
             debugDisplay.IncrementSteps();
         }
@@ -872,21 +872,21 @@ public class NormalEnemyAgent : Agent
 
     public void HandleDamage()
     {
-        rewardConfig.AddDamagePunishment(this);
+        rewardConfig?.AddDamagePunishment(this);
         currentState = "Taking Damage";
         currentAction = "Reacting";
         
-        if (!isCurrentlyChasing && playerDetection.IsPlayerVisible)
+        if (!isCurrentlyChasing && playerDetection != null && playerDetection.IsPlayerVisible)
         {
             isCurrentlyChasing = true;
             if (!hasChasedPlayerThisEpisode)
             {
-                rewardConfig.AddChasePlayerReward(this);
+                rewardConfig?.AddChasePlayerReward(this);
                 hasChasedPlayerThisEpisode = true;
             }
         }
         
-        playerDetection.UpdatePlayerDetection(transform.position);
+        playerDetection?.UpdatePlayerDetection(transform.position);
     }
 
     public void HandleAttackMissed()
@@ -916,10 +916,10 @@ public class NormalEnemyAgent : Agent
 
     private bool IsAgentKnockedBack() => rl_EnemyController.IsKnockedBack();
     private bool IsAgentFleeing() => rl_EnemyController.IsFleeing();
-    private bool ShouldAgentFlee() => rl_EnemyController.IsHealthLow() && playerDetection.IsPlayerAvailable();
+    private bool ShouldAgentFlee() => rl_EnemyController.IsHealthLow() && playerDetection != null && playerDetection.IsPlayerAvailable();
     private bool IsPlayerInAttackRange()
     {
-        if (!playerDetection.IsPlayerAvailable()) return false;
+        if (playerDetection == null || !playerDetection.IsPlayerAvailable()) return false;
         
         float distance = Vector3.Distance(transform.position, playerDetection.GetPlayerPosition());
         return distance <= rl_EnemyController.attackRange && distance >= 0.5f; 
@@ -929,8 +929,10 @@ public class NormalEnemyAgent : Agent
 
     void OnGUI()
     {
-        if (showDebugInfo)
+        if (showDebugInfo && debugDisplay != null && patrolSystem != null)
+        {
             debugDisplay.DisplayDebugInfo(gameObject.name, currentState, currentAction, debugTextOffset, debugTextColor, debugFontSize, patrolSystem.PatrolLoopsCompleted, episodeCount);
+        }
     }
 
     void OnCollisionEnter(Collision collision)

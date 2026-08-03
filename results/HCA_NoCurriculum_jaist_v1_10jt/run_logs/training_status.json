@@ -1,0 +1,65 @@
+{
+    "NormalEnemy": {
+        "checkpoints": [
+            {
+                "steps": 8499925,
+                "file_path": "results\\HCA_NoCurriculum_jaist_v1_10jt\\NormalEnemy\\NormalEnemy-8499925.onnx",
+                "reward": 1.9516879062507622,
+                "creation_time": 1785327188.6515307,
+                "auxillary_file_paths": [
+                    "results\\HCA_NoCurriculum_jaist_v1_10jt\\NormalEnemy\\NormalEnemy-8499925.pt"
+                ]
+            },
+            {
+                "steps": 8999865,
+                "file_path": "results\\HCA_NoCurriculum_jaist_v1_10jt\\NormalEnemy\\NormalEnemy-8999865.onnx",
+                "reward": 1.2742758972594386,
+                "creation_time": 1785328982.3972602,
+                "auxillary_file_paths": [
+                    "results\\HCA_NoCurriculum_jaist_v1_10jt\\NormalEnemy\\NormalEnemy-8999865.pt"
+                ]
+            },
+            {
+                "steps": 9499954,
+                "file_path": "results\\HCA_NoCurriculum_jaist_v1_10jt\\NormalEnemy\\NormalEnemy-9499954.onnx",
+                "reward": 2.247880187879603,
+                "creation_time": 1785330783.4011104,
+                "auxillary_file_paths": [
+                    "results\\HCA_NoCurriculum_jaist_v1_10jt\\NormalEnemy\\NormalEnemy-9499954.pt"
+                ]
+            },
+            {
+                "steps": 9999765,
+                "file_path": "results\\HCA_NoCurriculum_jaist_v1_10jt\\NormalEnemy\\NormalEnemy-9999765.onnx",
+                "reward": 2.283663660753917,
+                "creation_time": 1785332614.1577225,
+                "auxillary_file_paths": [
+                    "results\\HCA_NoCurriculum_jaist_v1_10jt\\NormalEnemy\\NormalEnemy-9999765.pt"
+                ]
+            },
+            {
+                "steps": 10000045,
+                "file_path": "results\\HCA_NoCurriculum_jaist_v1_10jt\\NormalEnemy\\NormalEnemy-10000045.onnx",
+                "reward": 2.347471382399644,
+                "creation_time": 1785332614.242358,
+                "auxillary_file_paths": [
+                    "results\\HCA_NoCurriculum_jaist_v1_10jt\\NormalEnemy\\NormalEnemy-10000045.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 10000045,
+            "file_path": "results\\HCA_NoCurriculum_jaist_v1_10jt\\NormalEnemy.onnx",
+            "reward": 2.347471382399644,
+            "creation_time": 1785332614.242358,
+            "auxillary_file_paths": [
+                "results\\HCA_NoCurriculum_jaist_v1_10jt\\NormalEnemy\\NormalEnemy-10000045.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.1.0",
+        "torch_version": "2.5.1+cu121"
+    }
+}

@@ -61,7 +61,14 @@ public class RL_TrainingPlayerSpawner : MonoBehaviour
     public int GetActiveTargetCount() => GetTotalActiveTargetCount();
     public int GetMaxTargets() => arenas.Length > 0 ? arenas[0].maxTargets : 0;
 
-    private void Start() => Initialize();
+    private void Awake() => EnsureInitialized();
+    private void Start() => EnsureInitialized();
+
+    public void EnsureInitialized()
+    {
+        if (initialized) return;
+        Initialize();
+    }
 
     private void Update()
     {
@@ -88,6 +95,7 @@ public class RL_TrainingPlayerSpawner : MonoBehaviour
 
     public void ResetArena()
     {
+        EnsureInitialized();
         LogAction("ResetArena", $"Resetting all {arenas.Length} arenas");
         
         DestroyAllTargets();
@@ -369,10 +377,14 @@ public class RL_TrainingPlayerSpawner : MonoBehaviour
             lifeTracker = target.AddComponent<RL_TrainingPlayer>();
         lifeTracker.Initialize(this);
 
-        // Configure curriculum player controller with arena bounds (if present)
+        // Configure curriculum player controller with arena bounds (auto-add if missing)
         var curriculumController = target.GetComponent<RL_CurriculumPlayerController>();
+        if (curriculumController == null)
+            curriculumController = target.AddComponent<RL_CurriculumPlayerController>();
+
         if (curriculumController != null)
         {
+            curriculumController.SetDifficultyStage(RL_CurriculumPlayerController.PlayerDifficultyStage.Aggressive);
             int arenaIndex = FindTargetArena(target);
             if (arenaIndex >= 0 && arenaBounds.ContainsKey(arenaIndex))
             {

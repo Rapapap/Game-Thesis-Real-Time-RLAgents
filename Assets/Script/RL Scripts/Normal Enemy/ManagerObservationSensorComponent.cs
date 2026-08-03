@@ -5,12 +5,12 @@ using Unity.MLAgents.Sensors;
 /// SensorComponent wrapper for ManagerObservationSensor.
 /// 
 /// ML-Agents discovers sensors via SensorComponent attached to the agent.
-/// This component creates the ManagerObservationSensor (plain C# ISensor, not MonoBehaviour)
+/// This component creates the ManagerObservationSensor (plain C# ISensor, not MonoBehaviour, 20-dim global observations)
 /// and passes it the required references.
 ///
 /// Usage:
 ///   1. Add this component to the agent GameObject (alongside BehaviorParameters)
-///   2. It will automatically register as an additional observation sensor
+///   2. It will automatically register as an additional observation sensor (20-dim features for manager critic)
 ///   3. The HCA Python trainer separates this from worker observations by index
 /// </summary>
 [RequireComponent(typeof(NormalEnemyAgent))]

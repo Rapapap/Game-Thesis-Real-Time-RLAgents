@@ -47,6 +47,11 @@ public class RL_TrainingEnemySpawner : MonoBehaviour
 
     private Dictionary<int, List<GameObject>> arenaEnemies = new Dictionary<int, List<GameObject>>();
 
+    private void Awake()
+    {
+        InitializeArenaDictionaries();
+    }
+
     private void Start()
     {
         InitializeArenaDictionaries();
@@ -55,9 +60,13 @@ public class RL_TrainingEnemySpawner : MonoBehaviour
 
     private void InitializeArenaDictionaries()
     {
+        if (arenaEnemies == null)
+            arenaEnemies = new Dictionary<int, List<GameObject>>();
+
         for (int i = 0; i < arenas.Length; i++)
         {
-            arenaEnemies[i] = new List<GameObject>();
+            if (!arenaEnemies.ContainsKey(i))
+                arenaEnemies[i] = new List<GameObject>();
         }
     }
 
@@ -66,7 +75,10 @@ public class RL_TrainingEnemySpawner : MonoBehaviour
         for (int i = 0; i < arenas.Length; i++)
         {
             yield return StartCoroutine(SpawnEnemiesInArena(arenas[i], i));
-            yield return new WaitForSeconds(0.1f); // Small delay between arenas
+            if (!NormalEnemyAgent.TrainingActive && !Unity.MLAgents.Academy.Instance.IsCommunicatorOn)
+            {
+                yield return new WaitForSeconds(0.1f); // Small delay between arenas
+            }
         }
     }
 
@@ -162,7 +174,10 @@ public class RL_TrainingEnemySpawner : MonoBehaviour
                     Debug.Log($"Spawned {prefab.name} #{successfulSpawns} in Arena {arenaIndex} at {spawnPosition} with preserved scale {originalScale}");
                 }
 
-                yield return new WaitForSeconds(spawnInterval);
+                if (!NormalEnemyAgent.TrainingActive && !Unity.MLAgents.Academy.Instance.IsCommunicatorOn && spawnInterval > 0f)
+                {
+                    yield return new WaitForSeconds(spawnInterval);
+                }
             }
         }
 
@@ -310,7 +325,10 @@ public class RL_TrainingEnemySpawner : MonoBehaviour
                     Debug.Log($"Spawned remaining {prefab.name} #{successfulSpawns} in Arena {arenaIndex} at {spawnPosition} with preserved scale {originalScale}");
                 }
                 
-                yield return new WaitForSeconds(spawnInterval);
+                if (!NormalEnemyAgent.TrainingActive && !Unity.MLAgents.Academy.Instance.IsCommunicatorOn && spawnInterval > 0f)
+                {
+                    yield return new WaitForSeconds(spawnInterval);
+                }
             }
             
             attempts++;

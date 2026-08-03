@@ -35,7 +35,7 @@ behaviors:
       manager_hidden_units: 128     # Keep width aligned with prior HCA runs
       manager_num_layers: 2         # Manager critic network depth
       manager_learning_rate: 0.0001 # Stabilize manager critic updates
-      hca_value_method: max         # RLHC Eq.16; use the less smoothed combination first
+      hca_value_method: softmax         # "softmax" (HCA paper) avoids overestimation bias from "max" operator
       manager_obs_index: -1         # Index of manager observation sensor (-1 = last)
 
     network_settings:

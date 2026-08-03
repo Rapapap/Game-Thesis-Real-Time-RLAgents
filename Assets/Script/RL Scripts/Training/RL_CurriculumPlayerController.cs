@@ -29,19 +29,19 @@ public class RL_CurriculumPlayerController : MonoBehaviour
     }
 
     [Header("Curriculum Configuration")]
-    [Tooltip("Override the curriculum stage manually (for testing). Set to -1 to use Academy parameter.")]
-    [SerializeField] private int manualStageOverride = -1;
+    [Tooltip("Override the curriculum stage manually (for testing). Set to -1 to use Academy parameter, or 3 for Aggressive.")]
+    [SerializeField] private int manualStageOverride = 3;
 
     [Header("Movement Settings")]
-    [SerializeField] private float wanderSpeed = 2f;
-    [SerializeField] private float aggressiveSpeed = 3.5f;
-    [SerializeField] private float retreatSpeed = 3f;
+    [SerializeField] private float wanderSpeed = 2.5f;
+    [SerializeField] private float aggressiveSpeed = 4.0f;
+    [SerializeField] private float retreatSpeed = 3.5f;
     [SerializeField] private float wanderDirectionChangeInterval = 2f;
     [SerializeField] private float wanderRadius = 5f;
 
     [Header("Behavior Thresholds")]
     [SerializeField] private float fleeRadius = 4f;
-    [SerializeField] private float aggressiveApproachRange = 8f;
+    [SerializeField] private float aggressiveApproachRange = 25f;
     [SerializeField] private float aggressiveStopRange = 2f;
 
     [Header("Attack Range Overrides")]
@@ -257,26 +257,44 @@ public class RL_CurriculumPlayerController : MonoBehaviour
 
     private void ExecuteAggressiveBehavior()
     {
-        // Stage 4: Actively move toward the nearest enemy
         Transform nearestEnemy = FindNearestEnemy();
 
         if (nearestEnemy != null)
         {
             float distanceToEnemy = Vector3.Distance(transform.position, nearestEnemy.position);
+            bool isLowHealth = playerController != null && (playerController.CurrentHealth / 100f < 0.35f);
 
-            if (distanceToEnemy > aggressiveStopRange && distanceToEnemy < aggressiveApproachRange)
+            // Tactical Retreat: If health is low (< 35%), run away from the enemy!
+            if (isLowHealth)
             {
-                // Move toward the enemy
+                Vector3 retreatDirection = (transform.position - nearestEnemy.position).normalized;
+                Vector3 retreatTarget = transform.position + retreatDirection * fleeRadius;
+                retreatTarget = ClampToArena(retreatTarget);
+
+                MoveToward(retreatTarget, retreatSpeed);
+                UpdateAnimation(true);
+                return;
+            }
+
+            // Chasing: Pursue enemy if further than 2.2m
+            if (distanceToEnemy > 2.2f && distanceToEnemy < aggressiveApproachRange)
+            {
                 MoveToward(nearestEnemy.position, aggressiveSpeed);
                 UpdateAnimation(true);
                 return;
             }
-            else if (distanceToEnemy <= aggressiveStopRange)
+            // Melee engagement: Dynamic strafe movement around enemy (like a real player) instead of standing frozen!
+            else if (distanceToEnemy <= 2.2f)
             {
-                // Close enough — stop and attack
-                StopMovement();
-                FaceDirection(nearestEnemy.position - transform.position);
-                UpdateAnimation(false);
+                Vector3 dirToEnemy = (nearestEnemy.position - transform.position).normalized;
+                Vector3 strafeDir = Vector3.Cross(dirToEnemy, Vector3.up).normalized;
+                float strafeSide = (Mathf.PingPong(Time.time, 2f) > 1f) ? 1f : -1f;
+                Vector3 strafeTarget = transform.position + (strafeDir * strafeSide * 1.5f);
+                strafeTarget = ClampToArena(strafeTarget);
+
+                MoveToward(strafeTarget, 2.0f);
+                FaceDirection(dirToEnemy);
+                UpdateAnimation(true);
                 return;
             }
         }
@@ -294,7 +312,7 @@ public class RL_CurriculumPlayerController : MonoBehaviour
         Vector3 direction = (target - transform.position);
         direction.y = 0f;
 
-        if (direction.sqrMagnitude < 0.1f)
+        if (direction.sqrMagnitude < 0.05f)
         {
             StopMovement();
             return;
@@ -304,6 +322,7 @@ public class RL_CurriculumPlayerController : MonoBehaviour
         FaceDirection(direction);
 
         Vector3 displacement = direction * speed * Time.fixedDeltaTime;
+        
         if (rb != null && !rb.isKinematic)
         {
             Vector3 velocity = direction * speed;
@@ -314,10 +333,9 @@ public class RL_CurriculumPlayerController : MonoBehaviour
         {
             rb.MovePosition(transform.position + displacement);
         }
-        else
-        {
-            transform.position += displacement;
-        }
+        
+        // Direct transform displacement fallback to guarantee non-frozen movement
+        transform.position = ClampToArena(transform.position + displacement);
     }
 
     /// <summary>
@@ -364,7 +382,7 @@ public class RL_CurriculumPlayerController : MonoBehaviour
 
     private Vector3 ClampToArena(Vector3 position)
     {
-        if (!arenaBoundsSet) return position;
+        if (!arenaBoundsSet || arenaMin.x >= arenaMax.x || arenaMin.z >= arenaMax.z) return position;
 
         position.x = Mathf.Clamp(position.x, arenaMin.x, arenaMax.x);
         position.z = Mathf.Clamp(position.z, arenaMin.z, arenaMax.z);
@@ -392,6 +410,24 @@ public class RL_CurriculumPlayerController : MonoBehaviour
             {
                 closestDistance = dist;
                 closest = enemy.transform;
+            }
+        }
+
+        // Fallback: search by RL_EnemyController
+        if (closest == null)
+        {
+            var controllers = FindObjectsByType<RL_EnemyController>(FindObjectsSortMode.None);
+            foreach (var ctrl in controllers)
+            {
+                if (ctrl == null || !ctrl.isActiveAndEnabled || ctrl.IsDead())
+                    continue;
+
+                float dist = Vector3.Distance(transform.position, ctrl.transform.position);
+                if (dist < closestDistance)
+                {
+                    closestDistance = dist;
+                    closest = ctrl.transform;
+                }
             }
         }
 

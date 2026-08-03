@@ -18,7 +18,11 @@ public class RL_TrainingManager : MonoBehaviour
     private int activeEnemiesCount = 0;
 
     #region Unity Lifecycle
-    private void Awake() => InitializeComponents();
+    private void Awake()
+    {
+        Application.runInBackground = true;
+        InitializeComponents();
+    }
     
     private void Start()
     {
@@ -113,7 +117,7 @@ public class RL_TrainingManager : MonoBehaviour
         yield return new WaitForEndOfFrame();
         
         ConfigureAllTargetSpawners();
-        yield return new WaitForSeconds(2f);
+        ResetAllTargetSpawners();
         
         RefreshAgentList();
         LogDebug($"Training started with {allAgents.Count} agents across {GetArenaCount()} arenas");

@@ -3,6 +3,8 @@
 # This config trains WITHOUT curriculum learning (static player only).
 # For curriculum learning, use: NormalEnemyCC.yaml
 #
+# NOTE: learning_rate matched to HCA (0.0001) for fair architectural comparison.
+#
 # To train:
 #   mlagents-learn config/ppo/NormalEnemyCC_NoCurriculum.yaml --run-id=PPO-NoCurriculum
 #
@@ -19,7 +21,7 @@ behaviors:
     hyperparameters:
       batch_size: 2048
       buffer_size: 20480
-      learning_rate: 0.0005
+      learning_rate: 0.0001     # Matched with HCA for fair comparison
       beta: 0.01
       epsilon: 0.15
       lambd: 0.95

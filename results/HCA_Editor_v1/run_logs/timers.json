@@ -1,0 +1,47 @@
+{
+    "name": "root",
+    "metadata": {
+        "timer_format_version": "0.1.0",
+        "start_time_seconds": "1785478962",
+        "python_version": "3.10.12 | packaged by Anaconda, Inc. | (main, Jul  5 2023, 19:01:18) [MSC v.1916 64 bit (AMD64)]",
+        "command_line_arguments": "C:\\Users\\RavaRazan\\anaconda3\\envs\\mlagents\\Scripts\\mlagents-learn config/hca/NormalEnemyHCA_NoCurriculum.yaml --run-id=HCA_Editor_v1 --torch-device=cuda --force",
+        "mlagents_version": "1.1.0",
+        "mlagents_envs_version": "1.1.0",
+        "communication_protocol_version": "1.5.0",
+        "pytorch_version": "2.5.1+cu121",
+        "numpy_version": "1.23.5",
+        "end_time_seconds": "1785478977"
+    },
+    "total": 15.150138599914499,
+    "count": 1,
+    "self": 0.011932499939575791,
+    "children": {
+        "run_training.setup": {
+            "total": 0.06763930001761764,
+            "count": 1,
+            "self": 0.06763930001761764
+        },
+        "TrainerController.start_learning": {
+            "total": 15.070566799957305,
+            "count": 1,
+            "self": 0.00040659995283931494,
+            "children": {
+                "TrainerController._reset_env": {
+                    "total": 15.070144500001334,
+                    "count": 1,
+                    "self": 15.070144500001334
+                },
+                "trainer_threads": {
+                    "total": 1.600012183189392e-06,
+                    "count": 1,
+                    "self": 1.600012183189392e-06
+                },
+                "TrainerController._save_models": {
+                    "total": 1.4099990949034691e-05,
+                    "count": 1,
+                    "self": 1.4099990949034691e-05
+                }
+            }
+        }
+    }
+}

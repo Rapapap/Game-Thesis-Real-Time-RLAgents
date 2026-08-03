@@ -409,8 +409,8 @@ class TorchHCAOptimizer(TorchOptimizer):
             manager_values, old_values, returns, decay_eps, loss_masks
         )
 
-        # Combined value loss (both critics learn to predict the same returns)
-        value_loss = worker_value_loss + manager_value_loss
+        # Combined value loss (diberi bobot 0.5 agar tidak membengkak 2x lipat)
+        value_loss = 0.5 * (worker_value_loss + manager_value_loss)
 
         # Policy loss (standard PPO clipped — uses advantages computed from combined values)
         policy_loss = ModelUtils.trust_region_policy_loss(
