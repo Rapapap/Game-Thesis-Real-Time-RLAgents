@@ -130,6 +130,7 @@ public class RL_PlayerController : MonoBehaviour
 
     private void Die()
     {
+        RL_EvalEvents.RaiseEpisodeResult(true);
         isAlive = false;
         attackEnabled = false;
         

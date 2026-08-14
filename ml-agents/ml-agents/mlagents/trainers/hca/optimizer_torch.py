@@ -421,10 +421,10 @@ class TorchHCAOptimizer(TorchOptimizer):
             decay_eps,
         )
 
-        # Total loss
+        # Total loss (value_loss is already 0.5 * (worker + manager))
         loss = (
             policy_loss
-            + 0.5 * value_loss
+            + value_loss
             - decay_bet * ModelUtils.masked_mean(entropy, loss_masks)
         )
 

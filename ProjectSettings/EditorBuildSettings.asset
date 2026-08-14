@@ -5,37 +5,37 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 0
+  - enabled: 1
     path: Assets/Level/Scenes/Intro.unity
     guid: 9ed903c0660015f438d254d9799d975f
-  - enabled: 0
+  - enabled: 1
     path: Assets/Level/Scenes/Menu 3D.unity
     guid: fa0913115ac1d4fba8b9d10280f4b04d
-  - enabled: 0
+  - enabled: 1
     path: Assets/Level/Scenes/Select_Character.unity
     guid: 75b154f7996e6f84ca43ce038bae818f
-  - enabled: 0
+  - enabled: 1
     path: Assets/Level/Scenes/Credit_Scene.unity
     guid: 3778ff94e7667f042a765ececbec2f84
-  - enabled: 0
+  - enabled: 1
     path: Assets/Level/Scenes/Select_Level.unity
     guid: e7fe116e6cc771b45a582914e439e3b9
-  - enabled: 0
+  - enabled: 1
     path: Assets/Level/Scenes/Loading/Loading.unity
     guid: ed8c79b01a6856d47a26597f882f7e39
-  - enabled: 0
+  - enabled: 1
     path: Assets/Level/Scenes/Intro Komik.unity
     guid: da190ce9aeba5eb49838130d05603544
-  - enabled: 0
+  - enabled: 1
     path: Assets/Level/Scenes/Game Stage/NewLevelOne.unity
     guid: 6bd4797f50ffd4244bc25bcf20056405
-  - enabled: 0
+  - enabled: 1
     path: Assets/Level/Scenes/Game Stage/Reinforcement Learning Stage.unity
     guid: b3089ffea3635714dae37b398ebecbf9
-  - enabled: 0
+  - enabled: 1
     path: Assets/Level/Scenes/Game Stage/[Skip Stage} RL Stage.unity
     guid: 63d642645df813241abb58afb16fa9cb
-  - enabled: 1
+  - enabled: 0
     path: Assets/Level/RL Scenes/Training/Training Normal Enemy.unity
     guid: a3760e20935ded044aa36275a0e81db9
   m_configObjects: {}

@@ -1,0 +1,49 @@
+# HCA (Hierarchical Critic Assignment) Configuration - No Curriculum (Softmax) v3
+# Based on: Cao & Lin (2020) - "Reinforcement Learning from Hierarchical Critics"
+#
+# Value combination method: SOFTMAX (HCA Paper)
+#
+# CHANGES from v2 (HCA_Softmax_v2):
+#   - beta: 0.01  -> 0.002  (drastically reduced entropy bonus → agent exploits instead of explores)
+#   - learning_rate_schedule: constant -> linear  (LR decays from 0.0001 to 0, helps policy stabilize)
+#   - epsilon: 0.15 -> 0.20  (slightly larger clip range → allows bigger policy updates early on)
+#
+# Goal: Reduce entropy from ~2.37 down to ~1.3-1.6 range (closer to PPO convergence).
+#
+# To train with executable:
+#   $env:PYTHONIOENCODING="utf-8"; C:\Users\RavaRazan\anaconda3\envs\mlagents\Scripts\mlagents-learn.exe config/hca/NormalEnemyHCA_NoCurriculum_Softmax_v3.yaml --env="Builds/Code Crusader.exe" --run-id=HCA_Softmax_v3 --force
+
+behaviors:
+  NormalEnemy:
+    trainer_type: hca
+    max_steps: 10000000
+    time_horizon: 512
+    summary_freq: 10000
+    threaded: false
+
+    hyperparameters:
+      batch_size: 2048
+      buffer_size: 20480
+      learning_rate: 0.0001
+      beta: 0.002              # Reduced from 0.01 → less entropy pressure, more exploitation
+      epsilon: 0.20            # Slightly wider clip vs v2 (0.15) for faster early learning
+      lambd: 0.95
+      num_epoch: 4
+      learning_rate_schedule: linear   # LR decays to 0 over max_steps → policy stabilizes late
+
+      # --- HCA-Specific Hyperparameters ---
+      manager_hidden_units: 128
+      manager_num_layers: 2
+      manager_learning_rate: 0.0001
+      hca_value_method: softmax        # Softmax value combination (RLHC Eq. 16)
+      manager_obs_index: -1
+
+    network_settings:
+      normalize: true
+      hidden_units: 256
+      num_layers: 3
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0

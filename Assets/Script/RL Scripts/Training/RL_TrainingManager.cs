@@ -26,7 +26,7 @@ public class RL_TrainingManager : MonoBehaviour
     
     private void Start()
     {
-        if (autoStartTraining)
+        if (autoStartTraining && NormalEnemyAgent.TrainingActive)
             StartCoroutine(InitializeTrainingSession());
     }
 
@@ -86,6 +86,8 @@ public class RL_TrainingManager : MonoBehaviour
 
     public void HandleEnemyDeath()
     {
+        if (!NormalEnemyAgent.TrainingActive) return;
+
         if (--activeEnemiesCount <= 0)
             StartCoroutine(ResetEpisodeCoroutine());
     }

@@ -35,7 +35,7 @@ public class NormalEnemyAgent : Agent
     #endregion
 
     #region Public Properties
-    public static bool TrainingActive = false;
+    public static bool TrainingActive => Unity.MLAgents.Academy.IsInitialized && Unity.MLAgents.Academy.Instance.IsCommunicatorOn;
     public float CurrentHealth => rl_EnemyController.enemyHP;
     public float MaxHealth => rl_EnemyController.enemyData.enemyHealth;
     public bool IsDead => rl_EnemyController.healthState.IsDead;
@@ -121,8 +121,7 @@ public class NormalEnemyAgent : Agent
         cachedPlayerSpawner = FindFirstObjectByType<RL_TrainingPlayerSpawner>();
         cachedTrainingManager = FindFirstObjectByType<RL_TrainingManager>();
         
-        // Auto-detect training mode: Only activate training loop behavior if RL_TrainingManager is present
-        TrainingActive = (cachedTrainingManager != null);
+        // TrainingActive is now auto-detected via Academy.Instance.IsCommunicatorOn (read-only property)
         
         isInitialized = true;
     }
@@ -137,8 +136,8 @@ public class NormalEnemyAgent : Agent
             if (!isInitialized) return;
         }
 
-        // Only reset if in training mode or episode reset is explicitly enabled
-        if (TrainingActive || enableEpisodeReset)
+        // Only reset if in training mode
+        if (TrainingActive)
         {
             // Reset reward exploit flags
             hasDetectedPlayerThisEpisode = false;
@@ -856,8 +855,10 @@ public class NormalEnemyAgent : Agent
         agentRigidbody.linearVelocity = Vector3.zero;
         agentRigidbody.angularVelocity = Vector3.zero;
 
-        // Only end episode if in training mode or episode reset is enabled
-        if (TrainingActive || enableEpisodeReset)
+        RL_EvalEvents.RaiseEpisodeResult(false);
+
+        // Only end episode if in training mode
+        if (TrainingActive)
         {
             // Stop any pending coroutines on the controller (e.g. DeactivateAfterDelay)
             // so they don't fire after the episode resets

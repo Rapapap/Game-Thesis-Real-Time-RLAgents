@@ -54,6 +54,8 @@
     "dotnet.defaultSolution": "Game-Thesis.sln",
     "discord.enabled": true,
     "python.analysis.extraPaths": [
-        "./ml-agents/ml-agents"
-    ]
+        "./ml-agents/ml-agents",
+        "./ml-agents/ml-agents-envs"
+    ],
+    "python.defaultInterpreterPath": "C:\\Users\\RavaRazan\\anaconda3\\envs\\mlagents\\python.exe"
 }

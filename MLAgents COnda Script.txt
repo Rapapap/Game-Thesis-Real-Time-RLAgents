@@ -56,11 +56,18 @@ mlagents-learn config/hca/NormalEnemyHCA.yaml --run-id=HCA_Curriculum_v1
 # 18) HCA without curriculum learning
 mlagents-learn config/hca/NormalEnemyHCA_NoCurriculum.yaml --run-id=HCA_NoCurriculum_v1
 
-# 19) Example comparison runs with CUDA
-mlagents-learn config/ppo/NormalEnemyCC.yaml --run-id=PPO_Curriculum_v1 --torch-device=cuda
-mlagents-learn config/ppo/NormalEnemyCC_NoCurriculum.yaml --run-id=PPO_NoCurriculum_v1 --torch-device=cuda
-mlagents-learn config/hca/NormalEnemyHCA.yaml --run-id=HCA_Curriculum_v1 --torch-device=cuda
-mlagents-learn config/hca/NormalEnemyHCA_NoCurriculum.yaml --run-id=HCA_NoCurriculum_v1 --torch-device=cuda
+# 19) Perbandingan Tiga Metode: PPO vs HCA Softmax vs HCA Max (Executable + 8 Envs + No Graphics)
+# Cara Otomatis (Menjalankan 3 model berurutan sekaligus):
+# .\run_all_experiments.ps1
+
+# Run 1: PPO Baseline (8 parallel envs, no graphics)
+$env:PYTHONIOENCODING="utf-8"; C:\Users\RavaRazan\anaconda3\envs\mlagents\Scripts\mlagents-learn.exe config/ppo/NormalEnemyCC_NoCurriculum.yaml --env="Builds/Code Crusader.exe" --run-id=PPO_NoCurriculum_v2 --no-graphics --num-envs=8 --force
+
+# Run 2: HCA Softmax (8 parallel envs, no graphics)
+$env:PYTHONIOENCODING="utf-8"; C:\Users\RavaRazan\anaconda3\envs\mlagents\Scripts\mlagents-learn.exe config/hca/NormalEnemyHCA_NoCurriculum_Softmax.yaml --env="Builds/Code Crusader.exe" --run-id=HCA_Softmax_v2 --no-graphics --num-envs=8 --force
+
+# Run 3: HCA Max (8 parallel envs, no graphics)
+$env:PYTHONIOENCODING="utf-8"; C:\Users\RavaRazan\anaconda3\envs\mlagents\Scripts\mlagents-learn.exe config/hca/NormalEnemyHCA_NoCurriculum_Max.yaml --env="Builds/Code Crusader.exe" --run-id=HCA_Max_v2 --no-graphics --num-envs=8 --force
 
 # 20) Optional: train multiple environments in parallel
 # mlagents-learn <config.yaml> --run-id=<run_id> --num-envs=4

@@ -455,6 +455,7 @@ public class RL_EnemyController : MonoBehaviour
             };
 
             rlPlayer.DamagePlayer(dmg, rlKnockback, transform.position);
+            RL_EvalEvents.RaiseEnemyDealtDamage(dmg);
             return true;
         }
 
@@ -487,6 +488,7 @@ public class RL_EnemyController : MonoBehaviour
             System.Func<IEnumerator> pcKnockback = () => CreateKnockbackCoroutine(player.transform.position);
 
             player.DamagePlayer(dmg, pcKnockback, transform.position);
+            RL_EvalEvents.RaiseEnemyDealtDamage(dmg);
             return true;
         }
 

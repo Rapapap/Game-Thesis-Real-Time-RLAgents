@@ -23,8 +23,7 @@ behaviors:
       buffer_size: 20480
 #      batch_size: 1024          # Reduced batch size for faster updates
 #      buffer_size: 10240       # Reduced buffer size for quicker learning
-#     learning_rate: 0.0001
-      learning_rate: 0.0001     # Match PPO baseline for a fairer comparison
+      learning_rate: 0.0001     # Stable rate for dual-critic Manager network
       beta: 0.01
       epsilon: 0.15
       lambd: 0.95

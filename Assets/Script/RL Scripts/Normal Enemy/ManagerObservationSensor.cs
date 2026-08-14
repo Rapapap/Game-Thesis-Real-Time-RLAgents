@@ -44,9 +44,10 @@ public class ManagerObservationSensor : ISensor
     private int recentAttackAttempts;
     private int recentAttackHits;
 
-    // Cached player
+    // Cached player and teammates
     private Transform cachedPlayerTransform;
     private float lastPlayerSearchTime;
+    private NormalEnemyAgent[] cachedTeammates;
 
     private readonly float[] observations = new float[ObservationSize];
 
@@ -134,6 +135,7 @@ public class ManagerObservationSensor : ISensor
     public void Reset()
     {
         ResetEngagement();
+        cachedTeammates = null;
         System.Array.Clear(observations, 0, ObservationSize);
     }
 
@@ -269,9 +271,14 @@ public class ManagerObservationSensor : ISensor
             int teammatesAdded = 0;
             if (agentTransform != null && agentTransform.parent != null)
             {
-                var teammateAgents = agentTransform.parent.GetComponentsInChildren<NormalEnemyAgent>();
-                foreach (var tm in teammateAgents)
+                if (cachedTeammates == null || cachedTeammates.Length == 0)
                 {
+                    cachedTeammates = agentTransform.parent.GetComponentsInChildren<NormalEnemyAgent>();
+                }
+
+                for (int i = 0; i < cachedTeammates.Length; i++)
+                {
+                    var tm = cachedTeammates[i];
                     if (teammatesAdded >= 2) break;
                     if (tm == null || tm.transform == agentTransform || tm.IsDead || !tm.gameObject.activeInHierarchy)
                         continue;
@@ -281,6 +288,14 @@ public class ManagerObservationSensor : ISensor
                     observations[idx++] = Mathf.Clamp(tmRelPos.z / (arenaHalfSizeZ > 0 ? arenaHalfSizeZ : 1f), -1f, 1f);
                     teammatesAdded++;
                 }
+            }
+
+            // Fill missing teammate observations with 0f if fewer than 2 teammates found
+            while (teammatesAdded < 2)
+            {
+                observations[idx++] = 0f;
+                observations[idx++] = 0f;
+                teammatesAdded++;
             }
 
             // Fill missing teammate observations with 0f if fewer than 2 teammates found

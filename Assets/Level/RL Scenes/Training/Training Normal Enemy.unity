@@ -114246,6 +114246,7 @@ GameObject:
   m_Component:
   - component: {fileID: 953872911}
   - component: {fileID: 953872910}
+  - component: {fileID: 953872912}
   m_Layer: 0
   m_Name: RL_TrainingManager
   m_TagString: Untagged
@@ -114284,6 +114285,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &953872912
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 953872909}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 516fafce31b0ac5409a8111115bc41dc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  runLabel: PPO_v2
+  targetEpisodes: 50
+  outputFolder: EvalResults
+  autoFindAgents: 1
 --- !u!1001 &963797673
 PrefabInstance:
   m_ObjectHideFlags: 0

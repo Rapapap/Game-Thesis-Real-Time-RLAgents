@@ -1662,4 +1662,5 @@ MonoBehaviour:
   arenaHalfSizeX: 10
   arenaHalfSizeZ: 10
   arenaCenter: {x: 0, y: 0, z: 0}
+  useFallbackLegacyObservations: 0
   showDebugGizmos: 1

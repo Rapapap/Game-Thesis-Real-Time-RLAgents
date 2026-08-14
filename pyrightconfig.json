@@ -1,0 +1,6 @@
+{
+  "extraPaths": [
+    "ml-agents/ml-agents",
+    "ml-agents/ml-agents-envs"
+  ]
+}

@@ -56,7 +56,30 @@ class TorchModelSaver(BaseModelSaver):
         pytorch_ckpt_path = f"{checkpoint_path}.pt"
         export_ckpt_path = f"{checkpoint_path}.onnx"
         torch.save(state_dict, f"{checkpoint_path}.pt")
-        torch.save(state_dict, os.path.join(self.model_path, DEFAULT_CHECKPOINT_NAME))
+        
+        default_ckpt_path = os.path.join(self.model_path, DEFAULT_CHECKPOINT_NAME)
+        saved = False
+        for attempt in range(5):
+            try:
+                torch.save(state_dict, default_ckpt_path)
+                saved = True
+                break
+            except Exception as e:
+                logger.warning(
+                    f"Attempt {attempt + 1} to save {DEFAULT_CHECKPOINT_NAME} failed ({e}). Retrying..."
+                )
+                import time
+                time.sleep(0.5)
+
+        if not saved:
+            try:
+                shutil.copyfile(pytorch_ckpt_path, default_ckpt_path)
+                logger.info(
+                    f"Successfully copied {pytorch_ckpt_path} to {default_ckpt_path} as fallback."
+                )
+            except Exception as e:
+                logger.error(f"Failed to copy checkpoint fallback: {e}")
+
         self.export(checkpoint_path, behavior_name)
         return export_ckpt_path, [pytorch_ckpt_path]
 

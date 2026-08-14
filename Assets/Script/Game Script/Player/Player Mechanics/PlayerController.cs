@@ -534,6 +534,7 @@ public class PlayerController : MonoBehaviour
     #region Death System
     private void OnDeath()
     {
+        RL_EvalEvents.RaiseEpisodeResult(true);
         GameTimer.Instance.Stop();
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;

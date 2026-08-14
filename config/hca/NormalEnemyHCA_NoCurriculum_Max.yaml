@@ -1,0 +1,41 @@
+# HCA (Hierarchical Critic Assignment) Configuration - No Curriculum (Max)
+# Based on: Cao & Lin (2020) - "Reinforcement Learning from Hierarchical Critics"
+#
+# Value combination method: MAX (RLHC Eq.16)
+# To train with executable:
+#   $env:PYTHONIOENCODING="utf-8"; C:\Users\RavaRazan\anaconda3\envs\mlagents\Scripts\mlagents-learn.exe config/hca/NormalEnemyHCA_NoCurriculum_Max.yaml --env="Builds/Code Crusader.exe" --run-id=HCA_Max_v1 --force
+
+behaviors:
+  NormalEnemy:
+    trainer_type: hca
+    max_steps: 10000000
+    time_horizon: 512
+    summary_freq: 10000
+    threaded: false
+
+    hyperparameters:
+      batch_size: 2048
+      buffer_size: 20480
+      learning_rate: 0.0001
+      beta: 0.01
+      epsilon: 0.15
+      lambd: 0.95
+      num_epoch: 4
+      learning_rate_schedule: constant
+
+      # --- HCA-Specific Hyperparameters ---
+      manager_hidden_units: 128
+      manager_num_layers: 2
+      manager_learning_rate: 0.0001
+      hca_value_method: max             # Max value combination (RLHC Eq.16)
+      manager_obs_index: -1
+
+    network_settings:
+      normalize: true
+      hidden_units: 256
+      num_layers: 3
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0

@@ -1,0 +1,7 @@
+
+=== EVALUATION SUMMARY [HCA_Softmax_v2] ===
+  Total Episodes  : 4357
+  Enemy Win-Rate  : 2.3% (101/4357)
+  Avg Damage/Ep   : 2.54
+  CSV Output      : C:\Users\RavaRazan\Downloads\Research Rava\Game-Thesis-Real-Time-RLAgents\EvalResults\eval_HCA_Softmax_v2_20260814_150303.csv
+==========================================
