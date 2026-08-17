@@ -211,22 +211,8 @@ public class RL_PlayerController : MonoBehaviour
         
         foreach (var hit in hits)
         {
-            if (hit == null) continue;
-            
-            // Check if tag is Enemy OR if component in parent is RL_EnemyController or NormalEnemyAgent
-            if (hit.CompareTag("Enemy") || 
-                hit.GetComponentInParent<RL_EnemyController>() != null || 
-                hit.GetComponentInParent<NormalEnemyAgent>() != null)
-            {
-                var enemyTransform = hit.transform;
-                var controller = hit.GetComponentInParent<RL_EnemyController>();
-                if (controller != null) enemyTransform = controller.transform;
-
-                if (enemyTransform != transform && !enemyTransform.IsChildOf(transform) && !enemies.Contains(enemyTransform))
-                {
-                    enemies.Add(enemyTransform);
-                }
-            }
+            if (hit != null && hit.CompareTag("Enemy"))
+                enemies.Add(hit.transform);
         }
         
         return enemies;

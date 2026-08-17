@@ -8,24 +8,22 @@ using Unity.MLAgents.Sensors;
 /// Plain C# class implementing ISensor (NOT a MonoBehaviour).
 /// Created and owned by ManagerObservationSensorComponent.
 ///
-/// Provides GLOBAL (arena-wide) observations for the manager critic (20 dimensions):
+/// Provides GLOBAL (arena-wide) observations for the manager critic:
 ///   [0-1]   Agent world position (normalized x, z)
 ///   [2-3]   Player world position (normalized x, z)
 ///   [4-5]   Relative direction agent->player (world, normalized)
 ///   [6]     Player distance (normalized to arena diagonal)
-///   [7]     Agent distance from arena center (normalized to half-diagonal)
+///   [7]     Agent health ratio
 ///   [8-12]  Behavior state one-hot (patrolling, chasing, attacking, fleeing, idle)
-///   [13]    Arena border proximity (normalized 0 to 1, boundary awareness)
+///   [13]    Arena quadrant (0-3, normalized to 0-1)
 ///   [14]    Episode time pressure (stepCount / maxStep)
 ///   [15]    Engagement success ratio
-///   [16-17] Teammate 1 world position (normalized x, z)
-///   [18-19] Teammate 2 world position (normalized x, z)
 ///
 /// Based on: Cao and Lin (2020) - "Reinforcement Learning from Hierarchical Critics"
 /// </summary>
 public class ManagerObservationSensor : ISensor
 {
-    private const int ObservationSize = 20;
+    private const int ObservationSize = 16;
     private const string SensorName = "ManagerObservation";
     private const int EngagementWindow = 20;
 
@@ -51,16 +49,13 @@ public class ManagerObservationSensor : ISensor
 
     private readonly float[] observations = new float[ObservationSize];
 
-    private readonly bool useFallbackLegacy;
-
     public ManagerObservationSensor(
         Transform agentTransform,
         NormalEnemyAgent agent,
         RL_EnemyController controller,
         Vector3 arenaCenter,
         float arenaHalfSizeX,
-        float arenaHalfSizeZ,
-        bool useFallbackLegacy = false)
+        float arenaHalfSizeZ)
     {
         this.agentTransform = agentTransform;
         this.agent = agent;
@@ -69,7 +64,6 @@ public class ManagerObservationSensor : ISensor
         this.arenaHalfSizeX = arenaHalfSizeX;
         this.arenaHalfSizeZ = arenaHalfSizeZ;
         this.arenaDiagonal = Mathf.Sqrt(arenaHalfSizeX * arenaHalfSizeX + arenaHalfSizeZ * arenaHalfSizeZ) * 2f;
-        this.useFallbackLegacy = useFallbackLegacy;
     }
 
     public void UpdateArenaBounds(Vector3 center, float halfX, float halfZ)
@@ -143,8 +137,10 @@ public class ManagerObservationSensor : ISensor
 
     private void CollectObservations()
     {
-        try
+        // Guard: if the agent transform was destroyed, write zeros
+        if (agentTransform == null)
         {
+<<<<<<< Updated upstream
             // Guard: if the agent transform was destroyed or null, write zeros
             if (agentTransform == null)
             {
@@ -309,8 +305,109 @@ public class ManagerObservationSensor : ISensor
         catch (System.Exception ex)
         {
             Debug.LogWarning($"[ManagerObservationSensor] Exception guarded in CollectObservations: {ex.Message}");
+=======
+>>>>>>> Stashed changes
             System.Array.Clear(observations, 0, ObservationSize);
+            return;
         }
+
+        int idx = 0;
+
+        // [0-1] Agent world position (normalized to arena bounds)
+        Vector3 agentRelPos = agentTransform.position - arenaCenter;
+        observations[idx++] = Mathf.Clamp(agentRelPos.x / arenaHalfSizeX, -1f, 1f);
+        observations[idx++] = Mathf.Clamp(agentRelPos.z / arenaHalfSizeZ, -1f, 1f);
+
+        // [2-6] Player-related global observations
+        Transform player = FindPlayer();
+        if (player != null)
+        {
+            Vector3 playerRelPos = player.position - arenaCenter;
+            observations[idx++] = Mathf.Clamp(playerRelPos.x / arenaHalfSizeX, -1f, 1f);
+            observations[idx++] = Mathf.Clamp(playerRelPos.z / arenaHalfSizeZ, -1f, 1f);
+
+            Vector3 relativeDir = player.position - agentTransform.position;
+            float distance = relativeDir.magnitude;
+
+            if (distance > 0.01f)
+            {
+                relativeDir = relativeDir.normalized;
+                observations[idx++] = relativeDir.x;
+                observations[idx++] = relativeDir.z;
+            }
+            else
+            {
+                observations[idx++] = 0f;
+                observations[idx++] = 0f;
+            }
+
+            observations[idx++] = Mathf.Clamp01(distance / arenaDiagonal);
+        }
+        else
+        {
+            observations[idx++] = 0f;
+            observations[idx++] = 0f;
+            observations[idx++] = 0f;
+            observations[idx++] = 0f;
+            observations[idx++] = 1f;
+        }
+
+        // [7] Agent health ratio
+        if (controller != null && controller.enemyData != null)
+        {
+            observations[idx++] = Mathf.Clamp01(controller.enemyHP / controller.enemyData.enemyHealth);
+        }
+        else
+        {
+            observations[idx++] = 1f;
+        }
+
+        // [8-12] Behavior state one-hot: patrolling, chasing, attacking, fleeing, idle
+        bool isPatrolling = false, isChasing = false, isAttacking = false, isFleeing = false, isIdle = false;
+
+        if (agent != null && !agent.IsDead)
+        {
+            string state = agent.CurrentBehaviorState;
+            string action = agent.CurrentBehaviorAction;
+
+            if (state == "Attacking" || action == "Attacking")
+                isAttacking = true;
+            else if (state == "Fleeing" || action == "Fleeing")
+                isFleeing = true;
+            else if (state == "Chasing" || action == "Chasing")
+                isChasing = true;
+            else if (state == "Patrolling" || action == "Patrolling")
+                isPatrolling = true;
+            else
+                isIdle = true;
+        }
+
+        observations[idx++] = isPatrolling ? 1f : 0f;
+        observations[idx++] = isChasing ? 1f : 0f;
+        observations[idx++] = isAttacking ? 1f : 0f;
+        observations[idx++] = isFleeing ? 1f : 0f;
+        observations[idx++] = isIdle ? 1f : 0f;
+
+        // [13] Arena quadrant (0-3, normalized)
+        int quadrant = GetArenaQuadrant(agentRelPos);
+        observations[idx++] = quadrant / 3f;
+
+        // [14] Episode time pressure
+        if (agent != null)
+        {
+            float maxStep = agent.MaxStep > 0 ? agent.MaxStep : 5000f;
+            observations[idx++] = Mathf.Clamp01(agent.StepCount / maxStep);
+        }
+        else
+        {
+            observations[idx++] = 0f;
+        }
+
+        // [15] Engagement success ratio
+        float engagementRatio = recentAttackAttempts > 0
+            ? (float)recentAttackHits / recentAttackAttempts
+            : 0f;
+        observations[idx] = engagementRatio;
     }
 
     private int GetArenaQuadrant(Vector3 relativePosition)

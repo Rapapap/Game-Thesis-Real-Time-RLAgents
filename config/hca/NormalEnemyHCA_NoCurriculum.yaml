@@ -1,4 +1,4 @@
-# HCA (Hierarchical Critic Assignment) Configuration - No Curriculum
+# HCA (Hierarchical Critic Assignment) Configuration — No Curriculum
 # Based on: Cao & Lin (2020) - "Reinforcement Learning from Hierarchical Critics"
 #
 # This config trains WITHOUT curriculum learning (static player only).
@@ -13,17 +13,26 @@
 behaviors:
   NormalEnemy:
     trainer_type: hca
-    max_steps: 10000000
+    max_steps: 1500000
     time_horizon: 512
     summary_freq: 10000
     threaded: false
 
     hyperparameters:
+<<<<<<< Updated upstream
       batch_size: 2048
       buffer_size: 20480
 #      batch_size: 1024          # Reduced batch size for faster updates
 #      buffer_size: 10240       # Reduced buffer size for quicker learning
       learning_rate: 0.0001     # Stable rate for dual-critic Manager network
+=======
+#    batch_size: 2048
+#    buffer_size: 20480
+      batch_size: 1024          # Reduced batch size for faster updates
+      buffer_size: 10240       # Reduced buffer size for quicker learning
+#     learning_rate: 0.0001
+      learning_rate: 0.0003     # Increased learning rate for faster convergence
+>>>>>>> Stashed changes
       beta: 0.01
       epsilon: 0.15
       lambd: 0.95
@@ -31,10 +40,11 @@ behaviors:
       learning_rate_schedule: constant
 
       # --- HCA-Specific Hyperparameters ---
-      manager_hidden_units: 128     # Keep width aligned with prior HCA runs
+      manager_hidden_units: 128     # Manager critic network width
       manager_num_layers: 2         # Manager critic network depth
-      manager_learning_rate: 0.0001 # Stabilize manager critic updates
-      hca_value_method: softmax         # "softmax" (HCA paper) avoids overestimation bias from "max" operator
+#     manager_learning_rate: 0.0003 # Manager critic learning rate
+      manager_learning_rate: 0.0005 # Increased manager learning rate for faster adaptation
+      hca_value_method: softmax     # "max" (RLHC Eq.16) or "softmax" (HCA paper)
       manager_obs_index: -1         # Index of manager observation sensor (-1 = last)
 
     network_settings:
@@ -46,3 +56,4 @@ behaviors:
       extrinsic:
         gamma: 0.99
         strength: 1.0
+

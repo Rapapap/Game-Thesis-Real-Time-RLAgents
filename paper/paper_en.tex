@@ -1,0 +1,91 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage{microtype}
+
+\begin{document}
+
+\title{Optimizing Non-Player Character Enemy Behavior Using Hierarchical Critic Assignment in Proximal Policy Optimization}
+
+\author{\IEEEauthorblockN{Rava Radithya Razan}
+\IEEEauthorblockA{\textit{Department of Informatics} \\
+\textit{Universitas Komputer Indonesia}\\
+Bandung, Indonesia \\
+ravarazan@gmail.com}
+\and
+\IEEEauthorblockN{Advisor}
+\IEEEauthorblockA{\textit{Department of Informatics} \\
+\textit{Universitas Komputer Indonesia}\\
+Bandung, Indonesia}
+}
+
+\maketitle
+
+\begin{abstract}
+Modern digital games demand adaptive and intelligent Non-Player Character (NPC) enemy behaviors to prevent gameplay from becoming repetitive and predictable. Proximal Policy Optimization (PPO) is a widely adopted policy gradient reinforcement learning (RL) algorithm due to its sample stability. However, in complex environments characterized by sparse reward signals and multi-task objectives (such as joint arena navigation and combat execution), standard PPO suffers from long-term credit assignment difficulties and high value estimation variance under a single monolithic critic. This paper proposes the integration of Hierarchical Critic Assignment (HCA) into PPO to optimize enemy NPC behavior within a 3D Hack-and-Slash / Tower Defense game scenario. The HCA architecture decouples critic evaluation into a two-level hierarchy: a Manager critic (strategic/global level) that estimates long-term returns for navigation subgoals, and a Worker critic (execution/local level) that estimates short-term returns for tactical combat actions. The two critics are combined using a softmax value aggregation mechanism and a coupling loss (\(L_{\text{coupling}}\)) to guide shared actor policy updates. Experiments conducted on Unity ML-Agents in a 3D arena environment compare standard PPO, flat multi-critic PPO, and PPO-HCA. Initial results and architectural evaluations demonstrate that hierarchical critic separation significantly improves agent navigation and combat coordination without incurring prohibitive policy network computational overhead.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Non-Player Character, Proximal Policy Optimization, Hierarchical Reinforcement Learning, Hierarchical Critic Assignment, Multi-Critic Learning, Unity ML-Agents.
+\end{IEEEkeywords}
+
+\section{Introduction}
+The global digital games industry continues its rapid expansion. According to Newzoo \cite{newzoo2025}, the global games market is projected to reach \$189 billion by 2025, driven by over 3.4 billion active players worldwide. Genres such as Action, Role-Playing Games (RPG), and Tower Defense remain major revenue drivers. Within these genres, enemy Non-Player Characters (NPCs) serve as core challenge elements that directly dictate player engagement and experience \cite{yannakakis2018artificial}.
+
+A persistent drawback in traditional rule-based NPC design (e.g., Finite State Machines or Behavior Trees) is rigid, highly predictable decision-making. Players rapidly identify behavioral exploits, diminishing long-term replay value. Reinforcement Learning (RL) presents a compelling alternative by enabling NPCs to learn adaptive strategies through direct environmental interaction \cite{sutton2018reinforcement}.
+
+However, applying flat RL algorithms to complex 3D game scenarios introduces significant optimization hurdles. In a baseline study conducted by Zaky (2025) applying standard Proximal Policy Optimization (PPO) to enemy NPCs in a 3D game environment, empirical player survey data from 106 respondents indicated that 84\% of players perceived enemy behavior as confusing. Furthermore, technical telemetry revealed a 70\% navigation failure rate and a 60\% attack execution failure rate within designated attack ranges. The fundamental root cause lies in the inability of a single monolithic critic in standard PPO to perform precise credit assignment across disparate time horizons: long-term arena navigation versus short-term close-quarters combat.
+
+To overcome these limitations, this research introduces a Hierarchical Critic Assignment (HCA) architecture that adapts hierarchical multi-critic principles \cite{cao2023reinforcement} into the PPO algorithm within Unity ML-Agents \cite{juliani2018unity}. The HCA framework decouples critic evaluation into two distinct tiers:
+\begin{enumerate}
+    \item \textbf{Manager Critic (Global Strategy)}: Evaluates broad environmental state observations (16 global features) to estimate long-term return values for spatial positioning and navigation goals.
+    \item \textbf{Worker Critic (Local Execution)}: Evaluates localized agent state observations (24 local features) to estimate short-term return values for tactical combat actions, dodging, and attacking.
+\end{enumerate}
+
+By aggregating value predictions from both critics using a softmax/maximum value operator and introducing an explicit coupling loss (\(L_{\text{coupling}}\)), the shared actor policy achieves more stable and targeted gradient updates. The key contributions of this paper are:
+\begin{itemize}
+    \item Formalizing the Hierarchical Critic Assignment (HCA) architecture within PPO for 3D game enemy NPC control.
+    \item Designing a decoupled observation and value estimation framework between strategic Manager (16 global features) and tactical Worker (24 local features) critics.
+    \item Performing comparative performance evaluations of HCA against standard PPO and flat multi-critic PPO baselines on Unity ML-Agents.
+\end{itemize}
+
+\section{Related Work}
+
+\subsection{Reinforcement Learning in Games}
+Reinforcement Learning (RL) provides a mathematical framework where agents learn optimal behavioral policies through sequential trial-and-error interaction guided by reward signals \cite{sutton2018reinforcement}. Combining RL with deep neural networks (Deep RL) \cite{lecun2015deep} has enabled agents to process high-dimensional spatial and visual input representations.
+
+In computer games, Deep RL has achieved notable success across board games, arcade titles, and complex commercial environments \cite{yannakakis2018artificial}. Nevertheless, real-time 3D environments present severe challenges due to high-dimensional joint action spaces (simultaneous navigation and combat) and sparse reward structures, where agents receive positive reinforcement only upon achieving intermediate subgoals or defeating player units.
+
+\subsection{Proximal Policy Optimization and Multi-Critic Evaluation}
+Proximal Policy Optimization (PPO) \cite{schulman2017proximal} is a benchmark actor-critic policy gradient algorithm favored for its training stability. PPO prevents destabilizing policy updates by penalizing large probability ratio changes via a clipped surrogate objective:
+\begin{equation}
+L^{\text{CLIP}}(\theta) = \hat{\mathbb{E}}_t \left[ \min(r_t(\theta)\hat{A}_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t) \right]
+\end{equation}
+where \(r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}\) and \(\hat{A}_t\) represents the Generalized Advantage Estimation (GAE) \cite{schulman2015high}.
+
+Despite PPO's stability, advantage estimation \(\hat{A}_t\) relies heavily on accurate value baseline predictions \(V(s)\). In multi-task settings, a single critic frequently suffers from approximation error and excessive variance. Similar value estimation pitfalls led to the development of Twin Delayed Deep Deterministic Policy Gradient (TD3) \cite{fujimoto2018addressing}, where Fujimoto et al. demonstrated that employing dual independent critics (clipped double-Q learning) mitigates value overestimation bias. This multi-critic paradigm forms an essential foundation for multi-head value evaluation architectures.
+
+\subsection{Hierarchical Reinforcement Learning and Subgoal Decomposition}
+Hierarchical Reinforcement Learning (HRL) decomposes complex decision processes into distinct levels of spatial and temporal abstraction \cite{sutton2018reinforcement}. Vezhnevets et al. \cite{vezhnevets2017feudal} introduced FeUdal Networks (FuNs), an HRL architecture featuring separate Manager and Worker modules. The Manager establishes latent goal vectors over long time horizons, while the Worker outputs primitive actions to satisfy those subgoals.
+
+HRL methodologies were further advanced by Nachum et al. \cite{nachum2018data} with Data-Efficient Hierarchical Reinforcement Learning (HIRO), incorporating hindsight experience replay to stabilize off-policy subgoal learning. Recently, Huang et al. \cite{huang2023hierarchical} proposed Hierarchical Adaptive Value Estimation (HAVE) at NeurIPS 2023, demonstrating that modality-customized hierarchical value estimation outperforms unified global value prediction in multi-modal environments.
+
+While most HRL literature emphasizes policy abstraction, Cao \& Lin \cite{cao2023reinforcement} introduced Reinforcement Learning from Hierarchical Critics (RLHC) in IEEE TNNLS, focusing on critic abstraction by organizing global and local critics into a cooperative hierarchy. The HCA architecture proposed in this paper adapts and builds upon this hierarchical critic formulation.
+
+\subsection{Neural Network Architectures and Deep RL Stabilization}
+Modular neural network design was pioneered by Jacobs et al. \cite{jacobs1991adaptive} through Adaptive Mixtures of Local Experts, establishing that dividing complex tasks among specialized expert networks governed by a gating mechanism prevents catastrophic inter-task interference.
+
+For deep architectures, Srivastava et al. \cite{srivastava2015training} introduced Highway Networks, utilizing transform gates to preserve gradient flow across deep networks. In modern Deep RL, Parisotto et al. \cite{parisotto2020stabilizing} developed Gated Transformer-XL (GTrXL) at ICML 2020, underscoring the critical role of layer normalization re-ordering and gating mechanisms in stabilizing deep RL optimization. These stabilization principles inspire the design of the explicit coupling loss (\(L_{\text{coupling}}\)) in HCA, maintaining consistency between Manager and Worker evaluations.
+
+\subsection{Unity ML-Agents Toolkit}
+The Unity ML-Agents Toolkit \cite{juliani2018unity} is an open-source framework enabling 3D Unity environments to serve as training grounds for RL agents via PyTorch. ML-Agents provides native support for algorithms like PPO and SAC, alongside flexible interfaces for custom sensor components (\textit{Observation Sensor Component}) and external critic modules, making it an optimal testbed for implementing HCA.
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

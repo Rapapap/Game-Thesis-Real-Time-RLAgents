@@ -99,7 +99,7 @@ class TorchHCAOptimizer(TorchOptimizer):
         manager_obs_specs = [all_obs_specs[manager_idx]]
 
         # ---- Actor parameters (shared, same as PPO) ----
-        params = list(self.policy.actor.parameters())
+        actor_worker_params = list(self.policy.actor.parameters())
 
         # ---- Worker Critic (local observations) ----
         if self.hyperparameters.shared_critic:
@@ -111,7 +111,7 @@ class TorchHCAOptimizer(TorchOptimizer):
                 network_settings=trainer_settings.network_settings,
             )
             self._worker_critic.to(default_device())
-            params += list(self._worker_critic.parameters())
+            actor_worker_params += list(self._worker_critic.parameters())
 
         # ---- Manager Critic (global observations) — NEW for HCA ----
         manager_network_settings = NetworkSettings(
@@ -125,11 +125,18 @@ class TorchHCAOptimizer(TorchOptimizer):
             network_settings=manager_network_settings,
         )
         self._manager_critic.to(default_device())
+        manager_params = list(self._manager_critic.parameters())
 
         # ---- Learning rate decay (same schedule as PPO) ----
         self.decay_learning_rate = ModelUtils.DecayedValue(
             self.hyperparameters.learning_rate_schedule,
             self.hyperparameters.learning_rate,
+            1e-10,
+            self.trainer_settings.max_steps,
+        )
+        self.decay_manager_learning_rate = ModelUtils.DecayedValue(
+            self.hyperparameters.learning_rate_schedule,
+            self.hyperparameters.manager_learning_rate,
             1e-10,
             self.trainer_settings.max_steps,
         )
@@ -146,14 +153,12 @@ class TorchHCAOptimizer(TorchOptimizer):
             self.trainer_settings.max_steps,
         )
 
-        # Separate optimizers: actor + worker critic share PPO's optimizer, manager critic is isolated.
+        # Optimizer with separate parameter groups for actor/worker vs manager critic
         self.optimizer = torch.optim.Adam(
-            params, lr=self.trainer_settings.hyperparameters.learning_rate
-        )
-        # Manager critic gets its own learning rate so HCA can tune it independently.
-        self.manager_optimizer = torch.optim.Adam(
-            self._manager_critic.parameters(),
-            lr=self.hyperparameters.manager_learning_rate,
+            [
+                {"params": actor_worker_params, "lr": self.hyperparameters.learning_rate},
+                {"params": manager_params, "lr": self.hyperparameters.manager_learning_rate},
+            ]
         )
 
         self.stats_name_to_update_name = {
@@ -186,11 +191,7 @@ class TorchHCAOptimizer(TorchOptimizer):
         all_obs = ObsUtil.from_buffer(buffer, n_obs)
         worker_obs_bufs = [all_obs[i] for i in self.worker_obs_indices]
 
-        processors = self._worker_critic.network_body.observation_encoder.processors
-        assert len(worker_obs_bufs) == len(processors), (
-            f"Mismatch between worker obs buffers ({len(worker_obs_bufs)}) and encoder processors ({len(processors)})"
-        )
-        for obs_buf, enc in zip(worker_obs_bufs, processors):
+        for obs_buf, enc in zip(worker_obs_bufs, self._worker_critic.network_body.observation_encoder.processors):
             if isinstance(enc, VectorInput):
                 enc.update_normalization(torch.as_tensor(obs_buf.to_ndarray()))
 
@@ -240,9 +241,6 @@ class TorchHCAOptimizer(TorchOptimizer):
         for name in worker_values:
             w_val = worker_values[name]
             m_val = manager_values[name]
-            assert w_val.shape == m_val.shape, (
-                f"Shape mismatch between worker value {w_val.shape} and manager value {m_val.shape}"
-            )
 
             if method == "max":
                 # RLHC Eq. 16: element-wise max
@@ -338,6 +336,9 @@ class TorchHCAOptimizer(TorchOptimizer):
         """
         # Get decayed parameters
         decay_lr = self.decay_learning_rate.get_value(self.policy.get_current_step())
+        decay_manager_lr = self.decay_manager_learning_rate.get_value(
+            self.policy.get_current_step()
+        )
         decay_eps = self.decay_epsilon.get_value(self.policy.get_current_step())
         decay_bet = self.decay_beta.get_value(self.policy.get_current_step())
 
@@ -409,8 +410,8 @@ class TorchHCAOptimizer(TorchOptimizer):
             manager_values, old_values, returns, decay_eps, loss_masks
         )
 
-        # Combined value loss (diberi bobot 0.5 agar tidak membengkak 2x lipat)
-        value_loss = 0.5 * (worker_value_loss + manager_value_loss)
+        # Combined value loss (both critics learn to predict the same returns)
+        value_loss = worker_value_loss + manager_value_loss
 
         # Policy loss (standard PPO clipped — uses advantages computed from combined values)
         policy_loss = ModelUtils.trust_region_policy_loss(
@@ -428,13 +429,12 @@ class TorchHCAOptimizer(TorchOptimizer):
             - decay_bet * ModelUtils.masked_mean(entropy, loss_masks)
         )
 
-        # Optimize
-        ModelUtils.update_learning_rate(self.optimizer, decay_lr)
+        # Optimize: update learning rates for each param group individually
+        self.optimizer.param_groups[0]["lr"] = decay_lr
+        self.optimizer.param_groups[1]["lr"] = decay_manager_lr
         self.optimizer.zero_grad()
-        self.manager_optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        self.manager_optimizer.step()
 
         update_stats = {
             "Losses/Policy Loss": torch.abs(policy_loss).item(),
@@ -442,7 +442,7 @@ class TorchHCAOptimizer(TorchOptimizer):
             "Losses/HCA Worker Value Loss": worker_value_loss.item(),
             "Losses/HCA Manager Value Loss": manager_value_loss.item(),
             "Policy/Learning Rate": decay_lr,
-            "Policy/Manager Learning Rate": self.hyperparameters.manager_learning_rate,
+            "Policy/Manager Learning Rate": decay_manager_lr,
             "Policy/Epsilon": decay_eps,
             "Policy/Beta": decay_bet,
         }
@@ -454,8 +454,8 @@ class TorchHCAOptimizer(TorchOptimizer):
             "Optimizer:value_optimizer": self.optimizer,
             "Optimizer:worker_critic": self._worker_critic,
             "Optimizer:manager_critic": self._manager_critic,
-            "Optimizer:manager_value_optimizer": self.manager_optimizer,
         }
         for reward_provider in self.reward_signals.values():
             modules.update(reward_provider.get_modules())
         return modules
+

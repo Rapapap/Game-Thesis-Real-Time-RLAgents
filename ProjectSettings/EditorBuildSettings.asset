@@ -35,8 +35,11 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Level/Scenes/Game Stage/[Skip Stage} RL Stage.unity
     guid: 63d642645df813241abb58afb16fa9cb
+<<<<<<< Updated upstream
   - enabled: 0
     path: Assets/Level/RL Scenes/Training/Training Normal Enemy.unity
     guid: a3760e20935ded044aa36275a0e81db9
+=======
+>>>>>>> Stashed changes
   m_configObjects: {}
   m_UseUCBPForAssetBundles: 0
