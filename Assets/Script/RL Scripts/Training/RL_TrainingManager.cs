@@ -26,7 +26,7 @@ public class RL_TrainingManager : MonoBehaviour
     
     private void Start()
     {
-        if (autoStartTraining && NormalEnemyAgent.TrainingActive)
+        if (autoStartTraining)
             StartCoroutine(InitializeTrainingSession());
     }
 
@@ -86,8 +86,6 @@ public class RL_TrainingManager : MonoBehaviour
 
     public void HandleEnemyDeath()
     {
-        if (!NormalEnemyAgent.TrainingActive) return;
-
         if (--activeEnemiesCount <= 0)
             StartCoroutine(ResetEpisodeCoroutine());
     }
@@ -130,7 +128,7 @@ public class RL_TrainingManager : MonoBehaviour
     private IEnumerator ResetEpisodeCoroutine()
     {
         isResetting = true;
-        LogDebug("Starting new training episode...");
+        LogDebug("Starting new episode...");
 
         RefreshAgentList();
         
@@ -139,8 +137,17 @@ public class RL_TrainingManager : MonoBehaviour
         ResetAllTargetSpawners();
         yield return new WaitForSeconds(episodeResetDelay);
         
-        // Reactivate and reset all agents (they are deactivated, not destroyed)
-        ResetAllAgents();
+        // If agents were destroyed in standalone mode or list is empty, respawn via spawner
+        if (enemySpawner != null && (allAgents.Count == 0 || allAgents.All(a => a == null)))
+        {
+            enemySpawner.RespawnAllArenas();
+            yield return new WaitForSeconds(0.2f);
+        }
+        else
+        {
+            // Reactivate and reset all agents (they are deactivated, not destroyed)
+            ResetAllAgents();
+        }
         
         RefreshAgentList();
         LogDebug($"Episode reset complete. Active agents: {allAgents.Count}");

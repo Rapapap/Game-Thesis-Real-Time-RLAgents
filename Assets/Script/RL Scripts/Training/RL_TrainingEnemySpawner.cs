@@ -36,6 +36,7 @@ public class RL_TrainingEnemySpawner : MonoBehaviour
 
     [Header("Arena Setup")]
     [SerializeField] private ArenaConfiguration[] arenas;
+    public ArenaConfiguration[] Arenas => arenas;
 
     [Header("Spawn Settings")]
     [SerializeField] private float spawnInterval = 0.1f; 

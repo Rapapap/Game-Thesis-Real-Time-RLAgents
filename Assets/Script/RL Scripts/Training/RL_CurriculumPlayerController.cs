@@ -29,6 +29,8 @@ public class RL_CurriculumPlayerController : MonoBehaviour
     }
 
     [Header("Curriculum Configuration")]
+    [Tooltip("Enable curriculum control. When FALSE (default), full control is handled dynamically by RL_PlayerController.")]
+    [SerializeField] private bool enableCurriculumControl = false;
     [Tooltip("Override the curriculum stage manually (for testing). Set to -1 to use Academy parameter, or 3 for Aggressive.")]
     [SerializeField] private int manualStageOverride = 3;
 
@@ -91,6 +93,8 @@ public class RL_CurriculumPlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (!enableCurriculumControl) return;
+
         // Periodically check if the curriculum stage has changed
         if (Time.time - lastDifficultyCheck > DifficultyCheckInterval)
         {

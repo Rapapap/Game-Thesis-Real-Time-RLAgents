@@ -22,7 +22,7 @@ public class RL_EnemyController : MonoBehaviour
     [SerializeField] private LootManager lootManager;
     [SerializeField] private VFXManager vfxManager;
     [SerializeField] private Transform particlePosition;
-    [SerializeField] private EnemyType enemyType;
+    [SerializeField] public EnemyType enemyType;
     #endregion
 
     #region Public Properties & Variables
@@ -794,10 +794,10 @@ public class RL_EnemyController : MonoBehaviour
         {
             agent.HandleEnemyDeath();
 
-            // During training, do NOT deactivate or destroy.
+            // During training or evaluation with episode reset, do NOT deactivate or destroy.
             // The agent calls EndEpisode(), which triggers OnEpisodeBegin(), which resets the agent.
             // If we deactivate/destroy, the agent unregisters from Academy and can't be reset.
-            if (NormalEnemyAgent.TrainingActive)
+            if (NormalEnemyAgent.TrainingActive || agent.EnableEpisodeReset)
             {
                 return;
             }

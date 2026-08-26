@@ -1,4 +1,6 @@
 {
+  "venvPath": "C:\\Users\\RavaRazan\\anaconda3\\envs",
+  "venv": "mlagents",
   "extraPaths": [
     "ml-agents/ml-agents",
     "ml-agents/ml-agents-envs"

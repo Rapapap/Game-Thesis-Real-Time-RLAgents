@@ -61,13 +61,13 @@ mlagents-learn config/hca/NormalEnemyHCA_NoCurriculum.yaml --run-id=HCA_NoCurric
 # .\run_all_experiments.ps1
 
 # Run 1: PPO Baseline (8 parallel envs, no graphics)
-$env:PYTHONIOENCODING="utf-8"; C:\Users\RavaRazan\anaconda3\envs\mlagents\Scripts\mlagents-learn.exe config/ppo/NormalEnemyCC_NoCurriculum.yaml --env="Builds/Code Crusader.exe" --run-id=PPO_NoCurriculum_v2 --no-graphics --num-envs=8 --force
+$env:PYTHONIOENCODING="utf-8"; C:\Users\RavaRazan\anaconda3\envs\mlagents\Scripts\mlagents-learn.exe config/ppo/NormalEnemyCC_NoCurriculum.yaml --env="C:\Users\RavaRazan\Downloads\Builds-NewBotPlayer\Code Crusader.exe" --run-id=PPO_NoCurriculum_v2 --no-graphics --num-envs=8 --force
 
 # Run 2: HCA Softmax (8 parallel envs, no graphics)
-$env:PYTHONIOENCODING="utf-8"; C:\Users\RavaRazan\anaconda3\envs\mlagents\Scripts\mlagents-learn.exe config/hca/NormalEnemyHCA_NoCurriculum_Softmax.yaml --env="Builds/Code Crusader.exe" --run-id=HCA_Softmax_v2 --no-graphics --num-envs=8 --force
+$env:PYTHONIOENCODING="utf-8"; C:\Users\RavaRazan\anaconda3\envs\mlagents\Scripts\mlagents-learn.exe config/hca/NormalEnemyHCA_NoCurriculum_Softmax.yaml --env="C:\Users\RavaRazan\Downloads\Builds-NewBotPlayer\Code Crusader.exe" --run-id=HCA_Softmax_v2 --no-graphics --num-envs=8 --force
 
 # Run 3: HCA Max (8 parallel envs, no graphics)
-$env:PYTHONIOENCODING="utf-8"; C:\Users\RavaRazan\anaconda3\envs\mlagents\Scripts\mlagents-learn.exe config/hca/NormalEnemyHCA_NoCurriculum_Max.yaml --env="Builds/Code Crusader.exe" --run-id=HCA_Max_v2 --no-graphics --num-envs=8 --force
+$env:PYTHONIOENCODING="utf-8"; C:\Users\RavaRazan\anaconda3\envs\mlagents\Scripts\mlagents-learn.exe config/hca/NormalEnemyHCA_NoCurriculum_Max.yaml --env="C:\Users\RavaRazan\Downloads\Builds-NewBotPlayer\Code Crusader.exe" --run-id=HCA_Max_v2 --no-graphics --num-envs=8 --force
 
 # 20) Optional: train multiple environments in parallel
 # mlagents-learn <config.yaml> --run-id=<run_id> --num-envs=4

@@ -31,11 +31,12 @@ public class NormalEnemyAgent : Agent
     
     [Header("Runtime Behavior")]
     [Tooltip("Enable to allow episode reset/respawn in non-training scenarios")]
-    [SerializeField] private bool enableEpisodeReset = false;
+    [SerializeField] private bool enableEpisodeReset = true;
     #endregion
 
     #region Public Properties
     public static bool TrainingActive => Unity.MLAgents.Academy.IsInitialized && Unity.MLAgents.Academy.Instance.IsCommunicatorOn;
+    public bool EnableEpisodeReset => enableEpisodeReset;
     public float CurrentHealth => rl_EnemyController.enemyHP;
     public float MaxHealth => rl_EnemyController.enemyData.enemyHealth;
     public bool IsDead => rl_EnemyController.healthState.IsDead;
@@ -136,8 +137,8 @@ public class NormalEnemyAgent : Agent
             if (!isInitialized) return;
         }
 
-        // Only reset if in training mode
-        if (TrainingActive)
+        // Reset if in training mode or enableEpisodeReset is true
+        if (TrainingActive || enableEpisodeReset)
         {
             // Reset reward exploit flags
             hasDetectedPlayerThisEpisode = false;
@@ -857,15 +858,15 @@ public class NormalEnemyAgent : Agent
 
         RL_EvalEvents.RaiseEpisodeResult(false);
 
-        // Only end episode if in training mode
-        if (TrainingActive)
+        // Notify Training Manager to handle arena reset logic if all agents die
+        cachedTrainingManager?.HandleEnemyDeath();
+
+        // End episode if in training mode or episode reset is enabled
+        if (TrainingActive || enableEpisodeReset)
         {
             // Stop any pending coroutines on the controller (e.g. DeactivateAfterDelay)
             // so they don't fire after the episode resets
             rl_EnemyController.StopAllCoroutines();
-            
-            // Notify Training Manager to handle arena reset logic if all agents die
-            cachedTrainingManager?.HandleEnemyDeath();
             
             EndEpisode();
         }
