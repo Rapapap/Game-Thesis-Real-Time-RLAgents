@@ -1,0 +1,23 @@
+% Table 1: IEEE Transactions / Conference Format
+\\begin{table*}[t]
+\\centering
+\\caption{Comprehensive Performance Comparison Across RL Generations (v1 -- v3)}
+\\label{tab:training_benchmark_summary}
+\\begin{tabular}{lllccccc}
+\\hline\\hline
+\\textbf{Iteration} & \\textbf{Algorithm / Method} & \\textbf{Critic Architecture} & \\textbf{Steps} & \\textbf{Mean $\\bar{R}$} & \\textbf{Peak {\\max}$} & \\textbf{Entropy $\\mathcal{H}$} & \\textbf{Runtime} \\\\
+\\hline
+\\textbf{v3 (Low-Entropy)} & \\textbf{HCA (Max - Ours)} & RLHC Eq. 16: $\\max(V_w, V_m)$ & \\times 10^6$ & \\textbf{15.68} & 29.52 & \\textbf{1.524} & 5.85 hr \\\\
+v3 (Low-Entropy) & HCA (Softmax) & Weighted Softmax Aggregation & \\times 10^6$ & 15.46 & 29.74 & 1.519 & 5.87 hr \\\\
+v3 (Baseline) & PPO (Baseline) & Single Critic (24 Local) & \\times 10^6$ & 21.33 & 52.48 & 1.720 & 3.77 hr \\\\
+\\hline
+v2 (Curriculum-Free) & HCA (Max) & High Exploration ($\\beta=0.01$) & \\times 10^6$ & 1.63 & 1.96 & 2.372 & 5.82 hr \\\\
+v2 (Curriculum-Free) & HCA (Softmax) & High Exploration ($\\beta=0.01$) & \\times 10^6$ & 1.77 & 2.13 & 2.364 & 5.85 hr \\\\
+v2 (Baseline) & PPO (Baseline) & Single Critic (Flat) & \\times 10^6$ & 1.78 & 2.13 & 1.316 & 3.65 hr \\\\
+\\hline
+v1 (Initial Pilot) & HCA (Max) & Legacy Reward Weights & \\times 10^6$ & 1.50 & 1.92 & 2.396 & 5.90 hr \\\\
+v1 (Initial Pilot) & HCA (Softmax) & Legacy Reward Weights & \\times 10^6$ & 1.73 & 2.11 & 2.347 & 5.92 hr \\\\
+v1 (Baseline) & PPO (Baseline) & Legacy Baseline Model & \\times 10^6$ & 1.60 & 2.02 & 2.322 & 3.80 hr \\\\
+\\hline\\hline
+\\end{tabular}
+\\end{table*}

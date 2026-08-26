@@ -1,0 +1,10 @@
+Model / Iteration,Total Steps,Final Reward (Raw),Final Reward (Smoothed),Peak Reward,Final Entropy
+PPO Baseline (v3),"10,000,000",20.62,21.33,52.48,1.720
+HCA Max (v3 - RLHC Canonical),"10,000,000",18.60,15.68,29.52,1.524
+HCA Softmax (v3 - Low Entropy),"10,000,000",13.32,15.46,29.74,1.519
+PPO Baseline (v2),"10,070,000",1.63,1.78,2.13,1.316
+HCA Max (v2),"10,000,000",1.63,1.63,1.96,2.372
+HCA Softmax (v2),"10,000,000",1.68,1.77,2.13,2.364
+PPO Baseline (v1),"10,000,000",1.45,1.60,2.02,2.322
+HCA Max (v1),"10,000,000",1.79,1.50,1.92,2.396
+HCA Softmax (v1),"10,000,000",1.75,1.73,2.11,2.347
