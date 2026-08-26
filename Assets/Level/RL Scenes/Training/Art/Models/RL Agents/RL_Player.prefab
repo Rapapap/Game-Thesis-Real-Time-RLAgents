@@ -717,11 +717,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   isRL_TrainingTarget: 1
-  maxHealth: 20
-  attackInterval: 1
-  attackDamage: 80
-  attackRange: 2
-  invincibilityDuration: 0.2
+  maxHealth: 150
+  attackInterval: 0.75
+  attackDamage: 30
+  attackRange: 2.5
+  invincibilityDuration: 0.3
   healthBarSlider: {fileID: 750789314923456546}
   animator: {fileID: 8625117619887489572}
   hurtParticle: {fileID: 756378077354520267}
