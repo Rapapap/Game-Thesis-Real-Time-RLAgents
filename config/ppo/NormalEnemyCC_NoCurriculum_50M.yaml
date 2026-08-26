@@ -1,10 +1,7 @@
-# PPO Baseline Configuration — No Curriculum
-#
-# This config trains WITHOUT curriculum learning (static player only).
-# For curriculum learning, use: NormalEnemyCC.yaml
+# PPO Baseline Configuration — 50 Million Steps (50M Convergence Run)
 #
 # To train:
-#   mlagents-learn config/ppo/NormalEnemyCC_NoCurriculum.yaml --run-id=PPO-NoCurriculum
+#   mlagents-learn config/ppo/NormalEnemyCC_NoCurriculum_50M.yaml --run-id=PPO_NoCurriculum_50M --env="C:\Users\RavaRazan\Downloads\Builds-NewBotPlayer\Code Crusader.exe" --no-graphics --num-envs=8 --force
 #
 # View results:
 #   tensorboard --logdir=results
@@ -12,16 +9,16 @@
 behaviors:
   NormalEnemy:
     trainer_type: ppo
-    max_steps: 5000000
+    max_steps: 50000000
     time_horizon: 512
-    summary_freq: 10000
+    summary_freq: 20000
     threaded: false
     hyperparameters:
       batch_size: 2048
       buffer_size: 20480
-      learning_rate: 0.0003     # Matched with HCA for fair comparison
-      beta: 0.005
-      epsilon: 0.2
+      learning_rate: 0.0003
+      beta: 0.002              # Matched with HCA for fair entropy comparison
+      epsilon: 0.20
       lambd: 0.95
       num_epoch: 4
       learning_rate_schedule: linear

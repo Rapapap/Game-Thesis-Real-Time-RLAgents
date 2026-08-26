@@ -1,0 +1,42 @@
+# HCA (Hierarchical Critic Assignment) - Max 50 Million Steps (50M Convergence Run)
+# Based on: Cao & Lin (2020) - "Reinforcement Learning from Hierarchical Critics" (RLHC Eq. 16)
+#
+# Value combination method: MAX (Canonical RLHC)
+#
+# To train:
+#   mlagents-learn config/hca/NormalEnemyHCA_NoCurriculum_Max_50M.yaml --run-id=HCA_Max_50M --env="C:\Users\RavaRazan\Downloads\Builds-NewBotPlayer\Code Crusader.exe" --no-graphics --num-envs=8 --force
+
+behaviors:
+  NormalEnemy:
+    trainer_type: hca
+    max_steps: 50000000
+    time_horizon: 512
+    summary_freq: 20000
+    threaded: false
+
+    hyperparameters:
+      batch_size: 2048
+      buffer_size: 20480
+      learning_rate: 0.0001
+      beta: 0.002              # Low entropy bonus for focused exploitation
+      epsilon: 0.20
+      lambd: 0.95
+      num_epoch: 4
+      learning_rate_schedule: linear   # Linear decay to 0 over 50M steps
+
+      # --- HCA-Specific Hyperparameters ---
+      manager_hidden_units: 128
+      manager_num_layers: 2
+      manager_learning_rate: 0.0001
+      hca_value_method: max     # Canonical Max value combination
+      manager_obs_index: -1
+
+    network_settings:
+      normalize: true
+      hidden_units: 256
+      num_layers: 3
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0

@@ -12,7 +12,7 @@
 
 $env:PYTHONIOENCODING = "utf-8"
 $mlagentsPath = "C:\Users\RavaRazan\anaconda3\envs\mlagents\Scripts\mlagents-learn.exe"
-$exePath = "Builds/Code Crusader.exe"
+$exePath = "C:\Users\RavaRazan\Downloads\Builds-NewBotPlayer\Code Crusader.exe"
 
 Write-Host "" 
 Write-Host "==========================================" -ForegroundColor Cyan
