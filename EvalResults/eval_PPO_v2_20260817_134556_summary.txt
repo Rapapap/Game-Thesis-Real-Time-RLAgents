@@ -1,0 +1,7 @@
+
+=== EVALUATION SUMMARY [PPO_v2] ===
+  Total Episodes  : 52
+  Enemy Win-Rate  : 26.9% (14/52)
+  Avg Damage/Ep   : 9.81
+  CSV Output      : C:\Users\RavaRazan\Downloads\Research Rava\Game-Thesis-Real-Time-RLAgents\EvalResults\eval_PPO_v2_20260817_134556.csv
+==========================================
