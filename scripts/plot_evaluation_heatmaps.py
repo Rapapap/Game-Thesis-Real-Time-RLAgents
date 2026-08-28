@@ -145,32 +145,66 @@ def main():
     args = parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
     
-    player_csvs = sorted(glob.glob(os.path.join(args.eval_dir, "heatmap_player_*.csv")))
-    if player_csvs:
-        p_csv = player_csvs[-1] # Plot latest
-        basename = os.path.basename(p_csv).replace("heatmap_player_", "").replace(".csv", "")
-        out = os.path.join(args.output_dir, f"plot_player_heatmap_{basename}.png")
-        plot_spatial_heatmap(p_csv, f"Player Spatial Occupancy ({basename})", out, cmap="viridis")
+    # 1. Plot all enemy heatmaps (latest per model)
+    enemy_csvs = glob.glob(os.path.join(args.eval_dir, "heatmap_enemies_*.csv"))
+    # Group by model name
+    enemy_models = {}
+    for f in enemy_csvs:
+        # Format: heatmap_enemies_<ModelName>_<timestamp>.csv
+        base = os.path.basename(f).replace("heatmap_enemies_", "").replace(".csv", "")
+        parts = base.rsplit("_", 2)
+        model_name = parts[0] if len(parts) >= 2 else base
+        if model_name not in enemy_models or os.path.getmtime(f) > os.path.getmtime(enemy_models[model_name]):
+            enemy_models[model_name] = f
 
-    enemy_csvs = sorted(glob.glob(os.path.join(args.eval_dir, "heatmap_enemies_*.csv")))
-    if enemy_csvs:
-        e_csv = enemy_csvs[-1] # Plot latest
-        basename = os.path.basename(e_csv).replace("heatmap_enemies_", "").replace(".csv", "")
-        out = os.path.join(args.output_dir, f"plot_enemies_heatmap_{basename}.png")
-        plot_spatial_heatmap(e_csv, f"Multi-Agent NPC Occupancy ({basename})", out, cmap="inferno")
+    for model_name, e_csv in enemy_models.items():
+        base = os.path.basename(e_csv).replace("heatmap_enemies_", "").replace(".csv", "")
+        out = os.path.join(args.output_dir, f"plot_enemies_heatmap_{base}.png")
+        plot_spatial_heatmap(e_csv, f"Multi-Agent NPC Occupancy ({base})", out, cmap="inferno")
 
-    polar_csvs = sorted(glob.glob(os.path.join(args.eval_dir, "heatmap_polar_angles_*.csv")))
-    if polar_csvs:
-        a_csv = polar_csvs[-1] # Plot latest
-        basename = os.path.basename(a_csv).replace("heatmap_polar_angles_", "").replace(".csv", "")
-        out = os.path.join(args.output_dir, f"plot_polar_encirclement_{basename}.png")
-        plot_polar_encirclement(a_csv, f"Encirclement Angular Profile ({basename})", out)
+    # 2. Plot all player heatmaps (latest per model)
+    player_csvs = glob.glob(os.path.join(args.eval_dir, "heatmap_player_*.csv"))
+    player_models = {}
+    for f in player_csvs:
+        base = os.path.basename(f).replace("heatmap_player_", "").replace(".csv", "")
+        parts = base.rsplit("_", 2)
+        model_name = parts[0] if len(parts) >= 2 else base
+        if model_name not in player_models or os.path.getmtime(f) > os.path.getmtime(player_models[model_name]):
+            player_models[model_name] = f
 
-    metrics_csvs = sorted(glob.glob(os.path.join(args.metrics_dir, "metrics_*.csv")))
-    if metrics_csvs:
-        m_csv = metrics_csvs[-1] # Plot latest
-        basename = os.path.basename(m_csv).replace("metrics_", "").replace(".csv", "")
-        out = os.path.join(args.output_dir, f"plot_dashboard_{basename}.png")
+    for model_name, p_csv in player_models.items():
+        base = os.path.basename(p_csv).replace("heatmap_player_", "").replace(".csv", "")
+        out = os.path.join(args.output_dir, f"plot_player_heatmap_{base}.png")
+        plot_spatial_heatmap(p_csv, f"Player Spatial Occupancy ({base})", out, cmap="viridis")
+
+    # 3. Plot all polar encirclement angles (latest per model)
+    polar_csvs = glob.glob(os.path.join(args.eval_dir, "heatmap_polar_angles_*.csv"))
+    polar_models = {}
+    for f in polar_csvs:
+        base = os.path.basename(f).replace("heatmap_polar_angles_", "").replace(".csv", "")
+        parts = base.rsplit("_", 2)
+        model_name = parts[0] if len(parts) >= 2 else base
+        if model_name not in polar_models or os.path.getmtime(f) > os.path.getmtime(polar_models[model_name]):
+            polar_models[model_name] = f
+
+    for model_name, a_csv in polar_models.items():
+        base = os.path.basename(a_csv).replace("heatmap_polar_angles_", "").replace(".csv", "")
+        out = os.path.join(args.output_dir, f"plot_polar_encirclement_{base}.png")
+        plot_polar_encirclement(a_csv, f"Encirclement Angular Profile ({base})", out)
+
+    # 4. Plot all metrics dashboards (latest per model)
+    metrics_csvs = glob.glob(os.path.join(args.metrics_dir, "metrics_*.csv"))
+    metrics_models = {}
+    for f in metrics_csvs:
+        base = os.path.basename(f).replace("metrics_", "").replace(".csv", "")
+        parts = base.rsplit("_", 2)
+        model_name = parts[0] if len(parts) >= 2 else base
+        if model_name not in metrics_models or os.path.getmtime(f) > os.path.getmtime(metrics_models[model_name]):
+            metrics_models[model_name] = f
+
+    for model_name, m_csv in metrics_models.items():
+        base = os.path.basename(m_csv).replace("metrics_", "").replace(".csv", "")
+        out = os.path.join(args.output_dir, f"plot_dashboard_{base}.png")
         plot_metrics_summary(m_csv, out)
 
     print("\n[Done] All latest evaluation plots generated in:", args.output_dir)

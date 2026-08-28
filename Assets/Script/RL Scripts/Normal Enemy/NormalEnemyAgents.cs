@@ -494,7 +494,7 @@ public class NormalEnemyAgent : Agent
         {
             HandleFleeingState(forward, right, rotation);
         }
-        else if (playerDetection.IsPlayerVisible && !ShouldAgentFlee())
+        else if (playerDetection.IsPlayerVisible && !IsAgentFleeing())
         {
             HandleChaseState(forward, right, rotation, shouldAttack);
         }
@@ -589,7 +589,7 @@ public class NormalEnemyAgent : Agent
             if (distanceToTarget < 2f)
             {
                 bool completedLoop = patrolSystem.AdvanceToNextWaypoint();
-                if (completedLoop)
+                if (completedLoop && !hasDetectedPlayerThisEpisode)
                 {
                     rewardConfig.AddPatrolReward(this);
                 }
@@ -771,6 +771,16 @@ public class NormalEnemyAgent : Agent
 
     private void ProcessPatrolStepRewards(float deltaTime)
     {
+        if (hasDetectedPlayerThisEpisode)
+        {
+            // Once combat has begun, wandering on patrol instead of engaging is discouraged
+            if (playerDetection != null && playerDetection.IsPlayerAvailable())
+            {
+                rewardConfig.AddDoesntChasePlayerPunishment(this, deltaTime);
+            }
+            return;
+        }
+
         if (patrolSystem == null || !patrolSystem.HasValidPatrolPoints())
         {
             previousDistanceToPatrolTarget = -1f;
