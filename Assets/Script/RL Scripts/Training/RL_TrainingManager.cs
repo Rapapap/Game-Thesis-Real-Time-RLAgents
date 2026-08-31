@@ -92,6 +92,24 @@ public class RL_TrainingManager : MonoBehaviour
             StartCoroutine(ResetEpisodeCoroutine());
         }
     }
+
+    private void OnEnable()
+    {
+        RL_PlayerController.OnPlayerDestroyed += HandlePlayerDeath;
+    }
+
+    private void OnDisable()
+    {
+        RL_PlayerController.OnPlayerDestroyed -= HandlePlayerDeath;
+    }
+
+    public void HandlePlayerDeath()
+    {
+        if (!isResetting)
+        {
+            StartCoroutine(ResetEpisodeCoroutine());
+        }
+    }
     #endregion
 
     #region Initialization

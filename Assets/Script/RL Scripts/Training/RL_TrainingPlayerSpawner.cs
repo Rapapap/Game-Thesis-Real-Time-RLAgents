@@ -164,9 +164,6 @@ public class RL_TrainingPlayerSpawner : MonoBehaviour
         RemoveTargetFromArena(target, arenaIndex);
         UpdateVisuals();
 
-        if (ShouldSpawnReplacement(arenaIndex))
-            SpawnSingleTargetInArena(arenaIndex);
-
         CheckForEpisodeEnd();
     }
 
