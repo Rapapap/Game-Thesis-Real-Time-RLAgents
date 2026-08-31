@@ -132,6 +132,7 @@ Fig.~\ref{fig:convergence_50m} and Table~\ref{tab:training_summary_50m} illustra
 \caption{50 Million Steps Asymptotic Training Summary}
 \label{tab:training_summary_50m}
 \centering
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{|l|c|c|c|c|}
 \hline
 \textbf{Model Architecture} & \textbf{Total Steps} & \textbf{Peak Reward} & \textbf{Final Reward} & \textbf{Final Entropy} \\
@@ -140,7 +141,8 @@ PPO Baseline (50M) & 50,000,000 & 31.00 & 21.07 $\pm$ 3.4 & 0.352 (Collapse) \\
 HCA Softmax (50M) & 50,000,000 & 30.22 & \textbf{22.84 $\pm$ 2.6} & \textbf{1.674 (Multi-Modal)} \\
 HCA Max (50M - RLHC) & 50,000,000 & \textbf{31.06} & 16.51 $\pm$ 2.1 & 1.422 (Equilibrium) \\
 \hline
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \subsubsection{Policy Collapse Mitigation in HCA}
@@ -160,6 +162,7 @@ The empirical combat evaluation metrics are summarized in Table~\ref{tab:eval_su
 \caption{Quantitative In-Game Combat Performance (50M Suite)}
 \label{tab:eval_summary_50m}
 \centering
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{|l|c|c|c|c|}
 \hline
 \textbf{Evaluation Metric} & \textbf{PPO (50M)} & \textbf{HCA Softmax} & \textbf{HCA Max} & \textbf{HCA Advantage} \\
@@ -171,7 +174,8 @@ Combat TTK (s) & 14.42 $\pm$ 2.8 & \textbf{13.06 $\pm$ 2.8} & 14.10 $\pm$ 3.0 & 
 Encirclement ($E_E^\circ$) & 114.37$^\circ$ & 113.81$^\circ$ & 113.35$^\circ$ & Stable Arc Formation \\
 Combat Distance (m) & 2.80 $\pm$ 0.27 & 2.60 $\pm$ 0.19 & \textbf{2.58 $\pm$ 0.21} & Tighter Penetration \\
 \hline
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \textbf{HCA Max (50M)} attained the highest average damage dealt to the player at \textbf{84.16 HP per episode} (+4.85\% over PPO Baseline at 80.35 HP), verifying the optimistic value selection efficacy of the maximum operator during offensive openings. Meanwhile, \textbf{HCA Softmax (50M)} achieved the fastest combat elimination duration (TTK) at \textbf{13.06 seconds} (+9.43\% faster than PPO's 14.42s).

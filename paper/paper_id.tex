@@ -132,6 +132,7 @@ Gambar~\ref{fig:convergence_50m} dan Tabel~\ref{tab:training_summary_50m} menyaj
 \caption{Ringkasan Metrik Pelatihan Konvergensi 50 Juta Steps}
 \label{tab:training_summary_50m}
 \centering
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{|l|c|c|c|c|}
 \hline
 \textbf{Model Arsitektur} & \textbf{Total Steps} & \textbf{Peak Reward} & \textbf{Final Reward} & \textbf{Final Entropy} \\
@@ -140,7 +141,8 @@ PPO Baseline (50M) & 50.000.000 & 31,00 & 21,07 $\pm$ 3,4 & 0,352 (Collapse) \\
 HCA Softmax (50M) & 50.000.000 & 30,22 & \textbf{22,84 $\pm$ 2,6} & \textbf{1,674 (Multi-Modal)} \\
 HCA Max (50M - RLHC) & 50.000.000 & \textbf{31,06} & 16,51 $\pm$ 2,1 & 1,422 (Equilibrium) \\
 \hline
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \subsubsection{Fenomena Policy Collapse pada PPO Baseline}
@@ -160,6 +162,7 @@ Hasil pengujian empiris \textit{in-game combat} disajikan pada Tabel~\ref{tab:ev
 \caption{Evaluasi Kuantitatif In-Game Combat (50M Suite)}
 \label{tab:eval_summary_50m}
 \centering
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{|l|c|c|c|c|}
 \hline
 \textbf{Metrik Evaluasi} & \textbf{PPO (50M)} & \textbf{HCA Softmax} & \textbf{HCA Max} & \textbf{Keunggulan HCA} \\
@@ -171,7 +174,8 @@ Combat TTK (s) & 14,42 $\pm$ 2,8 & \textbf{13,06 $\pm$ 2,8} & 14,10 $\pm$ 3,0 & 
 Encirclement ($E_E^\circ$) & 114,37$^\circ$ & 113,81$^\circ$ & 113,35$^\circ$ & Formasi Busur Stabil \\
 Jarak Tempur (m) & 2,80 $\pm$ 0,27 & 2,60 $\pm$ 0,19 & \textbf{2,58 $\pm$ 0,21} & Penetrasi Lebih Rapat \\
 \hline
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 Model \textbf{HCA Max (50M)} mencatatkan rata-rata kerusakan tertinggi sebesar \textbf{84,16 HP per episode} (+4,85\% dibanding PPO Baseline 80,35 HP), membuktikan efektivitas operator nilai maksimum dalam mengeksploitasi celah pertahanan lawan. Sementara itu, \textbf{HCA Softmax (50M)} mencatat durasi eliminasi pertarungan (\textit{Time-to-Kill}) tercepat dengan rata-rata \textbf{13,06 detik} (+9,43\% lebih agresif dibanding PPO 14,42 detik).
