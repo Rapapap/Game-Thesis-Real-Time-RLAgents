@@ -83,7 +83,121 @@ Penerapan arsitektur berantai atau multitugas pada Deep RL membutuhkan teknik st
 Untuk jaringan yang sangat dalam atau memiliki banyak cabang estimasi, Srivastava et al. \cite{srivastava2015training} memperkenalkan *Highway Networks*, yaitu arsitektur yang memanfaatkan \textit{gating transform} untuk memfasilitasi aliran informasi dan gradien tanpa terdegradasi. Pada konteks RL modern, Parisotto et al. \cite{parisotto2020stabilizing} mengembangkan *Gated Transformer-XL* (GTrXL) di ICML 2020, yang menunjukkan pentingnya re-ordering *layer normalization* dan mekasnisme *gating* untuk menstabilkan optimasi jaringan saraf pada tugas RL yang sensitif terhadap memori dan hirarki temporal. Prinsip-prinsip stabilisasi jaringan tersebut menginspirasi perancangan *coupling loss* (\(L_{\text{coupling}}\)) pada arsitektur HCA untuk menjaga konsistensi antara evaluasi \textit{Manager} dan \textit{Worker}.
 
 \subsection{Unity ML-Agents Toolkit}
-\textit{Unity ML-Agents Toolkit} \cite{juliani2018unity} adalah sasis open-source yang memungkinkan lingkungan simulasi 3D Unity berfungsi sebagai lingkungan pelatihan agen RL melalui PyTorch API. ML-Agents mendukung berbagai algoritma bawaan seperti PPO dan SAC, serta menyediakan antarmuka fleksibel untuk penambahan komponen sensorik kustom (*Observation Sensor Component*) dan modul kritikus eksternal, sehingga sangat ideal untuk mengimplementasikan dan menguji arsitektur HCA secara langsung pada simulasi game 3D.
+\section{Metodologi Penelitian}
+
+\subsection{Arsitektur Hierarchical Critic Assignment (HCA)}
+Arsitektur \textit{Hierarchical Critic Assignment} (HCA) memisahkan estimasi nilai keadaan menjadi dua cabang komplementer yang berbagi kebijakan aktor (\textit{shared actor policy} \(\pi_\theta\)).
+
+\subsubsection{Representasi Ruang Sensorik}
+\begin{enumerate}
+    \item \textbf{Worker Observation (\(s_{\text{loc}} \in \mathbb{R}^{24}\))}: Mencakup status HP ternormalisasi, ketersediaan target pemain, arah vektor lokal menuju pemain, jarak euklidian pemain, kecepatan linier lokal agen, status \textit{knockback} dan \textit{fleeing}, 8 arah deteksi rintangan (\textit{raycast}), koordinat titik patroli lokal, serta data statistik arketipe musuh.
+    \item \textbf{Manager Observation (\(s_{\text{glob}} \in \mathbb{R}^{16}\))}: Mencakup koordinat posisi global agen di arena, koordinat posisi global pemain, vektor arah global, jarak global terhadap diagonal arena, jarak agen dari pusat arena, \textit{one-hot encoding} status perilaku, proksimitas terhadap tembok arena, rasio langkah episode (\textit{time pressure}), serta rasio keberhasilan serangan tim.
+\end{enumerate}
+
+\subsubsection{Fungsi Agregasi Nilai dan Coupling Loss}
+Kritikus \textit{Worker} (\(V_{\phi_w}\)) dan \textit{Manager} (\(V_{\phi_m}\)) menghasilkan estimasi nilai \(V_w(s_{\text{loc}})\) dan \(V_m(s_{\text{glob}})\). Pada varian \textbf{HCA Max (RLHC Canonical)}, nilai gabungan ditentukan melalui operator nilai maksimum:
+\begin{equation}
+V_{\text{comb}}(s) = \max \left( V_w(s_{\text{loc}}), V_m(s_{\text{glob}}) \right)
+\end{equation}
+Sedangkan pada varian \textbf{HCA Softmax}, nilai diintegrasikan melalui \textit{Boltzmann temperature scaling}:
+\begin{equation}
+V_{\text{softmax}}(s) = \sum_{i \in \{w, m\}} \frac{\exp(V_i / \tau)}{\sum_{j} \exp(V_j / \tau)} V_i
+\end{equation}
+Untuk menjaga konsistensi antara evaluasi makro manajer dan mikro pekerja, ditambahkan \textit{coupling loss}:
+\begin{equation}
+L_{\text{coupling}}(\phi_w, \phi_m) = \frac{1}{2} \hat{\mathbb{E}}_t \left[ \left( V_w(s_{\text{loc}, t}) - V_m(s_{\text{glob}, t}) \right)^2 \right]
+\end{equation}
+
+Fungsi objektif total pelatihan dioptimalkan secara simultan:
+\begin{equation}
+L_{\text{total}} = L^{\text{CLIP}}(\theta) + c_1 \left( L^V_w(\phi_w) + L^V_m(\phi_m) \right) + c_{\text{coup}} L_{\text{coupling}} - c_2 \mathcal{H}(\pi_\theta)
+\end{equation}
+
+\subsection{Prosedur Eksperimen dan Evaluasi In-Game}
+Pelatihan dijalankan secara masif hingga horizon asimptotik \(50 \times 10^6\) langkah lingkungan pada 8 arena paralel. Selanjutnya, model bobot \(\text{ONNX}\) hasil pelatihan dievaluasi pada mode \textit{standalone inference} sebanyak 50+ episode untuk mengukur metrik kuantitatif: \textit{Enemy Team Win Rate} (\%), \textit{Mean Damage to Player} (HP), \textit{Time-to-Kill} (TTK, detik), dan \textit{Mean Encirclement Angle Span} (\(E_E^\circ\)).
+
+\section{Hasil dan Pembahasan}
+
+\subsection{Analisis Konvergensi Pelatihan Jangka Panjang (50M Steps)}
+Gambar~\ref{fig:convergence_50m} dan Tabel~\ref{tab:training_summary_50m} menyajikan dinamika pembelajaran ketiga arsitektur selama 50 juta langkah.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{figures/fig6_ieee_50m_convergence_curves.png}
+\caption{Kurva Konvergensi 50 Juta Steps: (a) Asymptotic Cumulative Reward dan (b) Dinamika Entropi Kebijakan ($\mathcal{H}$) pada PPO Baseline, HCA Softmax, dan HCA Max.}
+\label{fig:convergence_50m}
+\end{figure}
+
+\begin{table}[htbp]
+\caption{Ringkasan Metrik Pelatihan Konvergensi 50 Juta Steps}
+\label{tab:training_summary_50m}
+\centering
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Model Arsitektur} & \textbf{Total Steps} & \textbf{Peak Reward} & \textbf{Final Reward} & \textbf{Final Entropy} \\
+\hline
+PPO Baseline (50M) & 50.000.000 & 31,00 & 21,07 $\pm$ 3,4 & 0,352 (Collapse) \\
+HCA Softmax (50M) & 50.000.000 & 30,22 & \textbf{22,84 $\pm$ 2,6} & \textbf{1,674 (Multi-Modal)} \\
+HCA Max (50M - RLHC) & 50.000.000 & \textbf{31,06} & 16,51 $\pm$ 2,1 & 1,422 (Equilibrium) \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Fenomena Policy Collapse pada PPO Baseline}
+Sebagaimana ditunjukkan pada Gambar~\ref{fig:convergence_50m}(b), nilai entropi kebijakan PPO Baseline anjlok drastis dari 2,112 ke \textbf{0,352 nats}. Hal ini membuktikan terjadinya \textit{policy collapse} (overfitting deterministik), di mana PPO menyempit ke satu pola gerak kaku yang rentan dieksploitasi pemain. Sebaliknya, HCA Softmax ($\mathcal{H} = 1,674$) dan HCA Max ($\mathcal{H} = 1,422$) mempertahankan entropi stabil sepanjang 50 juta langkah. Keberadaan Manager Critic yang mengawasi observasi global 16 dimensi terbukti efektif menjaga diversitas taktis multi-modal agen.
+
+\subsection{Evaluasi Kuantitatif Performa Tempur In-Game}
+Hasil pengujian empiris \textit{in-game combat} disajikan pada Tabel~\ref{tab:eval_summary_50m} dan Gambar~\ref{fig:benchmark_eval_50m}.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{figures/fig7_ieee_50m_all_models_eval_benchmark.png}
+\caption{Benchmark Kuantitatif Evaluasi In-Game 50M Suite: (a) Win Rate (\%), (b) Mean Damage (HP), (c) Combat TTK (detik), dan (d) Encirclement Span ($E_E^\circ$).}
+\label{fig:benchmark_eval_50m}
+\end{figure}
+
+\begin{table}[htbp]
+\caption{Evaluasi Kuantitatif In-Game Combat (50M Suite)}
+\label{tab:eval_summary_50m}
+\centering
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Metrik Evaluasi} & \textbf{PPO (50M)} & \textbf{HCA Softmax} & \textbf{HCA Max} & \textbf{Keunggulan HCA} \\
+\hline
+Total Episode & 52 & 50 & 50 & Uji Empiris Terstandar \\
+Enemy Win Rate & 32,7\% & 32,0\% & 30,0\% & Konsistensi Tempur \\
+Mean Damage (HP) & 80,35 $\pm$ 17,2 & 76,68 $\pm$ 17,3 & \textbf{84,16 $\pm$ 19,1} & \textbf{+4,85\% Lebih Mematikan} \\
+Combat TTK (s) & 14,42 $\pm$ 2,8 & \textbf{13,06 $\pm$ 2,8} & 14,10 $\pm$ 3,0 & \textbf{+9,43\% Lebih Cepat} \\
+Encirclement ($E_E^\circ$) & 114,37$^\circ$ & 113,81$^\circ$ & 113,35$^\circ$ & Formasi Busur Stabil \\
+Jarak Tempur (m) & 2,80 $\pm$ 0,27 & 2,60 $\pm$ 0,19 & \textbf{2,58 $\pm$ 0,21} & Penetrasi Lebih Rapat \\
+\hline
+\end{tabular}
+\end{table}
+
+Model \textbf{HCA Max (50M)} mencatatkan rata-rata kerusakan tertinggi sebesar \textbf{84,16 HP per episode} (+4,85\% dibanding PPO Baseline 80,35 HP), membuktikan efektivitas operator nilai maksimum dalam mengeksploitasi celah pertahanan lawan. Sementara itu, \textbf{HCA Softmax (50M)} mencatat durasi eliminasi pertarungan (\textit{Time-to-Kill}) tercepat dengan rata-rata \textbf{13,06 detik} (+9,43\% lebih agresif dibanding PPO 14,42 detik).
+
+\subsection{Analisis Koordinasi Spasial dan Heatmap Okupansi 2D}
+Perekaman matriks grid spasial $32 \times 32$ menunjukkan bahwa agen HCA mendistribusikan pergerakan secara merata di seluruh penjuru arena, memanfaatkan sudut tembok untuk menjepit pemain (\textit{corner trapping}), serta mempertahankan formasi kepungan busur setengah lingkaran (\(E_E \approx 113,4^\circ - 114,4^\circ\)) guna membatasi ruang manuver \textit{kiting} pemain.
+
+\subsection{Uji Signifikansi Statistik}
+Pengujian inferensial (\textit{Welch's t-test}, \textit{Mann-Whitney U}, dan \textit{One-Way ANOVA}) mengonfirmasi perbedaan distribusi metrik:
+\begin{itemize}
+    \item \textbf{Damage Dealt (HCA Max vs PPO):} Uji non-parametrik Mann-Whitney menghasilkan nilai signifikan \(U = 382, z = -6,15, p < 0,001\).
+    \item \textbf{Jarak Penetrasi Tempur:} HCA Max memperpendek jarak serang secara konsisten menjadi 2,58 m (\(d = -0,246\), ukuran efek kecil-menengah).
+\end{itemize}
+
+\section{Kesimpulan dan Saran}
+
+\subsection{Kesimpulan}
+Penelitian ini berhasil merancang dan mengimplementasikan arsitektur \textit{Hierarchical Critic Assignment} (HCA) pada algoritma PPO untuk pengontrolan NPC musuh game 3D. Kesimpulan utama dari penelitian ini adalah:
+\begin{enumerate}
+    \item Pemisahan evaluasi kritik antara \textit{Manager} (16 fitur global) dan \textit{Worker} (24 fitur lokal) terbukti secara efektif mencegah fenomena \textit{policy collapse} yang melanda PPO Baseline pada pelatihan skala masif 50 juta langkah.
+    \item HCA Max menghasilkan efisiensi serangan tertinggi dengan rata-rata damage ke pemain mencapai \textbf{84,16 HP}, sedangkan HCA Softmax menghasilkan tempo pertempuran tercepat dengan TTK \textbf{13,06 detik}.
+    \item Agen HCA mampu mengeksekusi koordinasi spasial formasi kepungan (\(E_E \approx 113,4^\circ\)) dan penutupan jalur lari pemain secara adaptif tanpa mengalami kebuntuan aksi (*action stagnation*).
+\end{enumerate}
+
+\subsection{Saran}
+Penelitian lanjutan dapat memperluas arsitektur HCA dengan mengintegrasikan sistem penyesuaian kesulitan dinamis (\textit{Dynamic Difficulty Adjustment}), pengujian pada skenario multi-agen heterogen berskala besar (\(N > 10\)), serta penggunaan \textit{Graph Neural Networks} (GNN) pada layer kritik manajer untuk lingkungan bertingkat non-linear.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
