@@ -865,21 +865,9 @@ public class NormalEnemyAgent : Agent
 
         agentRigidbody.linearVelocity = Vector3.zero;
         agentRigidbody.angularVelocity = Vector3.zero;
-
-        RL_EvalEvents.RaiseEpisodeResult(false);
-
+        
         // Notify Training Manager to handle arena reset logic if all agents die
         cachedTrainingManager?.HandleEnemyDeath();
-
-        // End episode if in training mode or episode reset is enabled
-        if (TrainingActive || enableEpisodeReset)
-        {
-            // Stop any pending coroutines on the controller (e.g. DeactivateAfterDelay)
-            // so they don't fire after the episode resets
-            rl_EnemyController.StopAllCoroutines();
-            
-            EndEpisode();
-        }
     }
 
     public void HandleDamage()
@@ -898,6 +886,7 @@ public class NormalEnemyAgent : Agent
             }
         }
         
+        lastDistanceToPlayer = Vector3.Distance(transform.position, playerDetection.GetPlayerPosition());
         playerDetection?.UpdatePlayerDetection(transform.position);
     }
 
@@ -938,6 +927,14 @@ public class NormalEnemyAgent : Agent
     }
 
     public void SetPatrolPoints(Transform[] points) => patrolSystem?.SetPatrolPoints(points);
+
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.F1))
+        {
+            showDebugInfo = !showDebugInfo;
+        }
+    }
 
     void OnGUI()
     {

@@ -483,22 +483,26 @@ public class RL_MetricsLogger : MonoBehaviour
     #region On-Screen GUI Overlay
     private void OnGUI()
     {
-        if (!showOnScreenHUD || totalEpisodes == 0) return;
+        if (!showOnScreenHUD) return;
 
-        float enemyWinRate = (float)enemyWinCount / totalEpisodes * 100f;
+        float enemyWinRate = (totalEpisodes > 0) ? ((float)enemyWinCount / totalEpisodes * 100f) : 0f;
         float currentLiveEncirclement = (currentEpEncirclementSpans.Count > 0) 
             ? currentEpEncirclementSpans[currentEpEncirclementSpans.Count - 1] 
             : 0f;
 
-        GUI.Box(new Rect(10, 10, 310, 195), $"[RL Evaluation: {modelRunLabel}] (F3 Toggle)");
+        float boxWidth = 330f;
+        float boxHeight = 195f;
+        float boxX = Screen.width - boxWidth - 15f;
+        float boxY = 15f;
 
-        GUI.Label(new Rect(20, 35, 290, 20), $"Episodes Tested: {totalEpisodes} / {targetEvaluationEpisodes}");
-        GUI.Label(new Rect(20, 55, 290, 20), $"Enemy Win Rate: {enemyWinRate:F1}% ({enemyWinCount}W / {playerWinCount}L / {timeoutCount}T)");
-        GUI.Label(new Rect(20, 75, 290, 20), $"Live Encirclement Span: {currentLiveEncirclement:F1}°");
-        GUI.Label(new Rect(20, 95, 290, 20), $"Current Ep Steps: {episodeStepCount} / {maxStepsPerEpisode}");
-        GUI.Label(new Rect(20, 115, 290, 20), $"Current Ep Damage Dealt: {currentEpDamageDealtToPlayer:F0} HP");
-        GUI.Label(new Rect(20, 135, 290, 20), $"Creep: {currentEpCreepDamage:F0} | Humanoid: {currentEpHumanoidDamage:F0} | Bull: {currentEpBullDamage:F0}");
-        GUI.Label(new Rect(20, 160, 290, 20), $"CSV: {Path.GetFileName(csvFilePath)}");
+        GUI.Box(new Rect(boxX, boxY, boxWidth, boxHeight), $"[RL Evaluation: {modelRunLabel}] (F3 Toggle)");
+        GUI.Label(new Rect(boxX + 10, boxY + 25, 310, 20), $"Current Round   : {totalEpisodes + 1} / {targetEvaluationEpisodes} (Completed: {totalEpisodes})");
+        GUI.Label(new Rect(boxX + 10, boxY + 45, 310, 20), $"Enemy Win Rate  : {enemyWinRate:F1}% ({enemyWinCount}W / {playerWinCount}L / {timeoutCount}T)");
+        GUI.Label(new Rect(boxX + 10, boxY + 65, 310, 20), $"Live Encircle   : {currentLiveEncirclement:F1}°");
+        GUI.Label(new Rect(boxX + 10, boxY + 85, 310, 20), $"Current Steps   : {episodeStepCount} / {maxStepsPerEpisode}");
+        GUI.Label(new Rect(boxX + 10, boxY + 105, 310, 20), $"Current Ep Dmg  : {currentEpDamageDealtToPlayer:F0} HP");
+        GUI.Label(new Rect(boxX + 10, boxY + 125, 310, 20), $"Creep: {currentEpCreepDamage:F0} | Human: {currentEpHumanoidDamage:F0} | Bull: {currentEpBullDamage:F0}");
+        GUI.Label(new Rect(boxX + 10, boxY + 150, 310, 20), $"CSV: {Path.GetFileName(csvFilePath)}");
     }
     #endregion
 }

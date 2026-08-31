@@ -87,7 +87,10 @@ public class RL_TrainingManager : MonoBehaviour
     public void HandleEnemyDeath()
     {
         if (--activeEnemiesCount <= 0)
+        {
+            RL_EvalEvents.RaiseEpisodeResult(false);
             StartCoroutine(ResetEpisodeCoroutine());
+        }
     }
     #endregion
 

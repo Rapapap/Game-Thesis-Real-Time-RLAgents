@@ -455,24 +455,38 @@ public class RL_EvalLogger : MonoBehaviour
     }
     #endregion
 
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.F3))
+        {
+            showHUD = !showHUD;
+        }
+    }
+
     #region On-Screen GUI Overlay
     private void OnGUI()
     {
-        if (!showHUD || episodeCount == 0) return;
+        if (!showHUD) return;
 
-        float winRate = (float)enemyWins / episodeCount * 100f;
+        float winRate = (episodeCount > 0) ? ((float)enemyWins / episodeCount * 100f) : 0f;
+        float avgDamage = (episodeCount > 0) ? (totalDamageDealt / episodeCount) : 0f;
         float liveEncirclement = (currentEpEncirclementSpans.Count > 0)
             ? currentEpEncirclementSpans[currentEpEncirclementSpans.Count - 1]
             : 0f;
 
-        GUI.Box(new Rect(15, 15, 320, 190), $"[RL Evaluation: {runLabel}] (F3 Toggle)");
-        GUI.Label(new Rect(25, 40, 300, 20), $"Episodes Tested : {episodeCount} / {targetEpisodes}");
-        GUI.Label(new Rect(25, 60, 300, 20), $"Enemy Win Rate  : {winRate:F1}% ({enemyWins}W / {playerWins}L)");
-        GUI.Label(new Rect(25, 80, 300, 20), $"Avg Damage/Ep   : {(totalDamageDealt / episodeCount):F1} HP");
-        GUI.Label(new Rect(25, 100, 300, 20), $"Live Encircle   : {liveEncirclement:F1}°");
-        GUI.Label(new Rect(25, 120, 300, 20), $"Current Ep Dmg  : {currentEpisodeDamage:F1} HP");
-        GUI.Label(new Rect(25, 140, 300, 20), $"Current Steps   : {episodeStepCount} / {maxStepsPerEpisode}");
-        GUI.Label(new Rect(25, 165, 300, 20), $"Output Folder   : EvalResults/");
+        float boxWidth = 330f;
+        float boxHeight = 195f;
+        float boxX = Screen.width - boxWidth - 15f;
+        float boxY = 15f;
+
+        GUI.Box(new Rect(boxX, boxY, boxWidth, boxHeight), $"[RL Evaluation: {runLabel}] (F3 Toggle)");
+        GUI.Label(new Rect(boxX + 10, boxY + 25, 310, 20), $"Current Round   : {episodeCount + 1} / {targetEpisodes} (Completed: {episodeCount})");
+        GUI.Label(new Rect(boxX + 10, boxY + 45, 310, 20), $"Enemy Win Rate  : {winRate:F1}% ({enemyWins}W / {playerWins}L)");
+        GUI.Label(new Rect(boxX + 10, boxY + 65, 310, 20), $"Avg Damage/Round: {avgDamage:F1} HP");
+        GUI.Label(new Rect(boxX + 10, boxY + 85, 310, 20), $"Live Encircle   : {liveEncirclement:F1}°");
+        GUI.Label(new Rect(boxX + 10, boxY + 105, 310, 20), $"Current Rnd Dmg : {currentEpisodeDamage:F1} HP");
+        GUI.Label(new Rect(boxX + 10, boxY + 125, 310, 20), $"Current Steps   : {episodeStepCount} / {maxStepsPerEpisode}");
+        GUI.Label(new Rect(boxX + 10, boxY + 150, 310, 20), $"Output Folder   : EvalResults/");
     }
     #endregion
 

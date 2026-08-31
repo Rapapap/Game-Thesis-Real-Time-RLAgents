@@ -1,0 +1,23 @@
+===============================================================================
+         RL COMBAT QUANTITATIVE EVALUATION REPORT [HCA_Softmax_50M]
+===============================================================================
+  Date & Time           : 2026-08-31 13:38:47
+  Total Episodes Tested : 25
+-------------------------------------------------------------------------------
+  1. MATCH OUTCOMES & WIN RATES
+     - Enemy Team Wins  : 8 (32.0%)
+     - Player Wins      : 17 (68.0%)
+-------------------------------------------------------------------------------
+  2. COMBAT DURATION & TIME TO KILL (TTK)
+     - Mean Combat Duration : 14.72 seconds
+     - Mean Episode Steps   : 3.7 steps
+-------------------------------------------------------------------------------
+  3. MULTI-AGENT COORDINATION & ENCIRCLEMENT
+     - Mean Encirclement Span : 114.2° (0° = clumped, 240°-360° = surround)
+-------------------------------------------------------------------------------
+  4. DAMAGE EFFICIENCY
+     - Mean Damage to Player  : 85.2 HP
+===============================================================================
+  Raw CSV: C:\Users\RavaRazan\Downloads\Research Rava\Game-Thesis-Real-Time-RLAgents\EvalResults\eval_HCA_Softmax_50M_20260831_133238.csv
+  Metrics: C:\Users\RavaRazan\Downloads\Research Rava\Game-Thesis-Real-Time-RLAgents\EvalResults\metrics_HCA_Softmax_50M_20260831_133238.csv
+===============================================================================
