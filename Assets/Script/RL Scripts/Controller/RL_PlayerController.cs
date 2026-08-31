@@ -35,11 +35,11 @@ public class RL_PlayerController : MonoBehaviour
 
     [Header("Combat Settings")]
     [SerializeField] private float maxHealth = 150f;
-    [SerializeField] private float attackInterval = 0.75f;
+    [SerializeField] private float attackInterval = 0.65f;
     [SerializeField] private float attackDamage = 30f;
-    [SerializeField] private float attackRange = 2.5f;
+    [SerializeField] private float attackRange = 3.0f;
     [SerializeField] private float stopDistance = 2.0f;
-    [SerializeField] private float minPersonalSpace = 1.4f;
+    [SerializeField] private float minPersonalSpace = 1.3f;
     [SerializeField] private float sensorDetectionRadius = 40f;
     [SerializeField] private float invincibilityDuration = 0.3f;
 
@@ -47,9 +47,9 @@ public class RL_PlayerController : MonoBehaviour
     [SerializeField] private float chaseSpeed = 5.2f;
     [SerializeField] private float retreatSpeed = 4.2f;
     [SerializeField] private float dashSpeed = 10.0f;
-    [SerializeField] private float rotationSpeed = 16f;
+    [SerializeField] private float rotationSpeed = 18f;
     [SerializeField] private float dashDuration = 0.22f;
-    [SerializeField] private float dashCooldown = 3.0f;
+    [SerializeField] private float dashCooldown = 2.5f;
 
     [Header("Dynamic Multi-Targeting")]
     [Tooltip("Max hits on same target before forcing target switch (1-2 hits for fluid hit-and-run)")]
@@ -196,6 +196,33 @@ public class RL_PlayerController : MonoBehaviour
         {
             StartCoroutine(ExecuteMeleeStrikeRoutine(currentTarget, enemies));
             return;
+        }
+
+        // Proactive Dash: If surrounded by 2 or more close enemies, dash away into open space
+        if (Time.time - lastDashTime >= dashCooldown && enemies.Count > 1)
+        {
+            int closeCount = 0;
+            Vector3 crowdCentroid = Vector3.zero;
+            foreach (var e in enemies)
+            {
+                if (e == null) continue;
+                float d = Vector3.Distance(transform.position, e.position);
+                if (d <= 3.2f)
+                {
+                    closeCount++;
+                    crowdCentroid += e.position;
+                }
+            }
+
+            if (closeCount >= 2)
+            {
+                crowdCentroid /= closeCount;
+                Vector3 escapeDir = (transform.position - crowdCentroid).normalized;
+                escapeDir.y = 0;
+                if (escapeDir.sqrMagnitude < 0.01f) escapeDir = -transform.forward;
+                StartCoroutine(ExecuteEvasiveDashRoutine(escapeDir));
+                return;
+            }
         }
 
         // Check if we should switch target due to timeout
@@ -684,6 +711,14 @@ public class RL_PlayerController : MonoBehaviour
         PlayAnimationTrigger("getHit");
         PlayParticleEffect(hurtParticle);
         StartCoroutine(InvincibilityRoutine(invincibilityDuration));
+
+        // Reactive Dash: 40% chance to dash away immediately upon taking a hit if dash is available
+        if (Time.time - lastDashTime >= dashCooldown && Random.value < 0.4f)
+        {
+            Vector3 escapeDir = -transform.forward + transform.right * ((Random.value > 0.5f) ? 0.7f : -0.7f);
+            escapeDir.y = 0;
+            StartCoroutine(ExecuteEvasiveDashRoutine(escapeDir.normalized));
+        }
     }
 
     private void Die()

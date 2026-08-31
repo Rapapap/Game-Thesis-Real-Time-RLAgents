@@ -47,10 +47,10 @@ public class RL_CurriculumPlayerController : MonoBehaviour
     [SerializeField] private float aggressiveStopRange = 2f;
 
     [Header("Attack Range Overrides")]
-    [Tooltip("Attack range for Stage 1 (Static). Very close range only.")]
-    [SerializeField] private float staticAttackRange = 1.5f;
+    [Tooltip("Attack range for Stage 1 (Static).")]
+    [SerializeField] private float staticAttackRange = 2.8f;
     [Tooltip("Attack range for Stage 2+ (normal).")]
-    [SerializeField] private float normalAttackRange = 5f;
+    [SerializeField] private float normalAttackRange = 3.2f;
 
     [Header("Respawn Settings")]
     [SerializeField] private float respawnDelay = 2f;
