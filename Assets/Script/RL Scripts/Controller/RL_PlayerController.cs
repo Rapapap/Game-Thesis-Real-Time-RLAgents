@@ -188,13 +188,25 @@ public class RL_PlayerController : MonoBehaviour
     /// </summary>
     private void ExecuteHuntingBehavior(List<Transform> enemies, float distToTarget)
     {
+        Transform closestEnemy = GetClosestEnemy(enemies);
+        float distToClosest = (closestEnemy != null) ? Vector3.Distance(transform.position, closestEnemy.position) : distToTarget;
+
+        // Smart Obstacle Retargeting: If another enemy is physically closer or blocking the path, switch focus to them!
+        if (closestEnemy != null && closestEnemy != currentTarget && distToClosest < distToTarget - 1.0f)
+        {
+            currentTarget = closestEnemy;
+            distToTarget = distToClosest;
+            targetAcquireTime = Time.time;
+        }
+
         FaceTarget(currentTarget.position);
 
-        // Check if strike opportunity is reached
+        // Opportunistic Strike: If ANY enemy is in strike range -> ATTACK IMMEDIATELY!
         bool isReadyToAttack = (Time.time - lastAttackTime >= attackInterval);
-        if (attackEnabled && isReadyToAttack && distToTarget <= attackRange)
+        if (attackEnabled && isReadyToAttack && (distToTarget <= attackRange || distToClosest <= attackRange))
         {
-            StartCoroutine(ExecuteMeleeStrikeRoutine(currentTarget, enemies));
+            Transform strikeTarget = (distToClosest <= attackRange && closestEnemy != null) ? closestEnemy : currentTarget;
+            StartCoroutine(ExecuteMeleeStrikeRoutine(strikeTarget, enemies));
             return;
         }
 
@@ -321,25 +333,37 @@ public class RL_PlayerController : MonoBehaviour
         }
 
         PlayAttackAnimation();
-        yield return new WaitForSeconds(0.16f);
+        yield return new WaitForSeconds(0.14f);
 
-        if (target != null && Vector3.Distance(transform.position, target.position) <= attackRange * 1.5f)
+        // Melee Arc Cleave: Damage ALL valid enemies in front of the swing arc!
+        Vector3 playerPos = transform.position;
+        Vector3 fwd = transform.forward;
+        foreach (var e in enemies)
         {
-            DealDamageToEnemy(target);
+            if (e == null || !IsTargetValid(e)) continue;
+            Vector3 diff = e.position - playerPos;
+            diff.y = 0;
+            float dist = diff.magnitude;
+            if (dist <= attackRange * 1.25f)
+            {
+                float angle = Vector3.Angle(fwd, diff.normalized);
+                if (angle <= 85f || dist <= minPersonalSpace * 1.2f)
+                {
+                    DealDamageToEnemy(e);
+                }
+            }
         }
 
-        yield return new WaitForSeconds(0.16f);
+        yield return new WaitForSeconds(0.14f);
 
         // --- POST-ATTACK TACTICAL DECISION ---
-        if (currentComboHits >= maxComboHits || Random.value < 0.65f)
+        if (currentComboHits >= maxComboHits || Random.value < 0.60f)
         {
-            // Hit combo completed or dynamic roll -> DISENGAGE & SWITCH TARGET!
             currentComboHits = 0;
             DecidePostAttackManeuver(target, enemies);
         }
         else
         {
-            // Stay in hunting mode to deliver next combo strike
             currentState = CombatTacticState.Hunting;
         }
     }
@@ -447,15 +471,10 @@ public class RL_PlayerController : MonoBehaviour
             otherTargets.Remove(currentTarget);
         }
 
-        // Weighted Selection: 50% Random Variety, 30% Closest Threat, 20% Fragile Creep
+        // Weighted Selection: 75% Closest Threat, 25% Priority Vulnerable / Random
         float roll = Random.value;
 
-        if (roll < 0.40f)
-        {
-            // Random Target: Pick randomly among other enemies for organic spontaneity
-            currentTarget = otherTargets[Random.Range(0, otherTargets.Count)];
-        }
-        else if (roll < 0.75f)
+        if (roll < 0.75f)
         {
             // Closest Enemy among candidates
             currentTarget = GetClosestEnemy(otherTargets);
