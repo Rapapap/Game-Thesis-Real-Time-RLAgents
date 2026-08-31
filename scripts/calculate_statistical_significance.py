@@ -165,4 +165,3 @@ with open(output_path, "w", encoding="utf-8") as f:
     f.write(report_text)
 
 print(f"[Done] Pure-NumPy statistical report successfully generated at: {output_path}")
-print(report_text)

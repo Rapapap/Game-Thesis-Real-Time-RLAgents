@@ -1,0 +1,23 @@
+===============================================================================
+         RL COMBAT QUANTITATIVE EVALUATION REPORT [HCA_Max_50M]
+===============================================================================
+  Date & Time           : 2026-08-31 15:39:42
+  Total Episodes Tested : 72
+-------------------------------------------------------------------------------
+  1. MATCH OUTCOMES & WIN RATES
+     - Enemy Team Wins  : 8 (11.1%)
+     - Player Wins      : 64 (88.9%)
+-------------------------------------------------------------------------------
+  2. COMBAT DURATION & TIME TO KILL (TTK)
+     - Mean Combat Duration : 27.56 seconds
+     - Mean Episode Steps   : 26.9 steps
+-------------------------------------------------------------------------------
+  3. MULTI-AGENT COORDINATION & ENCIRCLEMENT
+     - Mean Encirclement Span : 56.6° (0° = clumped, 240°-360° = surround)
+-------------------------------------------------------------------------------
+  4. DAMAGE EFFICIENCY
+     - Mean Damage to Player  : 96.0 HP
+===============================================================================
+  Raw CSV: C:\Users\RavaRazan\Downloads\Research Rava\Game-Thesis-Real-Time-RLAgents\EvalResults\eval_HCA_Max_50M_20260831_150636.csv
+  Metrics: C:\Users\RavaRazan\Downloads\Research Rava\Game-Thesis-Real-Time-RLAgents\EvalResults\metrics_HCA_Max_50M_20260831_150636.csv
+===============================================================================
