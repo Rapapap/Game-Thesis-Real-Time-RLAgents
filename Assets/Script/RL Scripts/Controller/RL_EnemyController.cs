@@ -755,7 +755,7 @@ public class RL_EnemyController : MonoBehaviour
             RotateTowardsTarget(playerTracking.PlayerPosition);
     }
 
-    private void SetAnimationState(bool idle = false, bool walking = false, bool attacking = false, bool dead = false)
+    public void SetAnimationState(bool idle = false, bool walking = false, bool attacking = false, bool dead = false)
     {
         if (animator == null) return;
 
@@ -763,6 +763,20 @@ public class RL_EnemyController : MonoBehaviour
         animator.SetBool("isWalking", walking);
         animator.SetBool("isAttacking", attacking);
         animator.SetBool("isDead", dead);
+    }
+
+    public void ResetAnimationState()
+    {
+        healthState.ResetHealthState();
+        if (animator != null)
+        {
+            animator.SetBool("isDead", false);
+            animator.SetBool("isAttacking", false);
+            animator.SetBool("isWalking", false);
+            animator.SetBool("isIdle", true);
+            animator.Play("Idle", 0, 0f);
+            animator.Update(0f);
+        }
     }
 
     private void PlayHitAnimation() => animator?.SetTrigger("getHit");

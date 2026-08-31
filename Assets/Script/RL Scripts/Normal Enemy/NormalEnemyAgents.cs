@@ -382,6 +382,7 @@ public class NormalEnemyAgent : Agent
         ResetAgentState();
         rl_EnemyController.enemyHP = rl_EnemyController.enemyData.enemyHealth;
         rl_EnemyController.healthState.ResetHealthState();
+        rl_EnemyController.ResetAnimationState();
         rl_EnemyController.InitializeHealthBar();
         rl_EnemyController.fleeState?.Reset();
 

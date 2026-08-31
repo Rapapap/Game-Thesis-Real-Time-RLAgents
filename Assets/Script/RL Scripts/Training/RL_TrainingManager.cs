@@ -151,22 +151,23 @@ public class RL_TrainingManager : MonoBehaviour
         isResetting = true;
         LogDebug("Starting new episode...");
 
+        yield return new WaitForSeconds(0.15f);
+
         RefreshAgentList();
         
-        // Reset target spawners for new episode
+        // Reset both player target and enemy agents simultaneously
         ConfigureAllTargetSpawners();
         ResetAllTargetSpawners();
-        yield return new WaitForSeconds(episodeResetDelay);
-        
+
         // If agents were destroyed in standalone mode or list is empty, respawn via spawner
         if (enemySpawner != null && (allAgents.Count == 0 || allAgents.All(a => a == null)))
         {
             enemySpawner.RespawnAllArenas();
-            yield return new WaitForSeconds(0.2f);
+            yield return new WaitForSeconds(0.1f);
         }
         else
         {
-            // Reactivate and reset all agents (they are deactivated, not destroyed)
+            // Reactivate and reset all agents simultaneously with idle animation
             ResetAllAgents();
         }
         
