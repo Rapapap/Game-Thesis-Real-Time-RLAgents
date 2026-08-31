@@ -23,9 +23,9 @@ files = {
 
 data = {}
 for name, fpath in files.items():
-    df = pd.read_csv(fpath)
+    df = pd.read_csv(fpath).head(50)
     data[name] = df
-    print(f"Loaded {name}: {len(df)} episodes from {os.path.basename(fpath)}")
+    print(f"Loaded {name}: {len(df)} episodes (capped at 50) from {os.path.basename(fpath)}")
 
 metrics_to_test = [
     ('DamageDealt', 'Damage Dealt to Player (HP)', 'HP'),

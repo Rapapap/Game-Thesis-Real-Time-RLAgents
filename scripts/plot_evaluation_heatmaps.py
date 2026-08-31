@@ -96,7 +96,7 @@ def plot_metrics_summary(metrics_csv, output_path):
         print(f"[Warning] Metrics CSV not found: {metrics_csv}")
         return
 
-    df = pd.read_csv(metrics_csv)
+    df = pd.read_csv(metrics_csv).head(50)
     if len(df) == 0:
         return
 
