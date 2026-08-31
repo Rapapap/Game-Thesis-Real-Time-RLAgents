@@ -455,14 +455,6 @@ public class RL_EvalLogger : MonoBehaviour
     }
     #endregion
 
-    private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.F3))
-        {
-            showHUD = !showHUD;
-        }
-    }
-
     #region On-Screen GUI Overlay
     private void OnGUI()
     {

@@ -886,7 +886,6 @@ public class NormalEnemyAgent : Agent
             }
         }
         
-        lastDistanceToPlayer = Vector3.Distance(transform.position, playerDetection.GetPlayerPosition());
         playerDetection?.UpdatePlayerDetection(transform.position);
     }
 
