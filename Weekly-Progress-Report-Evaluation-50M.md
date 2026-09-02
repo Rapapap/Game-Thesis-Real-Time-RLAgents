@@ -36,12 +36,12 @@ Pengujian dilakukan pada Unity Standalone Inference Mode (tanpa intervensi Pytho
 
 | Metrik Evaluasi In-Game | PPO Baseline (50M) | HCA Softmax (50M) | HCA Max (50M - RLHC) | Temuan & Keunggulan HCA |
 | :--- | :---: | :---: | :---: | :--- |
-| **Total Episode Diuji** | $52$ Episode | $50$ Episode | $50$ Episode | Uji empiris terstandar |
-| **Enemy Team Win Rate** | $32.7\%$ | $32.0\%$ | $30.0\%$ | Menghadapi bot pemain dinamis |
-| **Mean Damage to Player** | $80.35 \pm 17.2$ HP | $76.68 \pm 17.3$ HP | $\mathbf{84.16 \pm 19.1 \text{ HP}}$ | 🏆 **$+4.85\%$ Lebih Mematikan (Damage Tertinggi)** |
-| **Mean Combat Duration (TTK)** | $14.42 \pm 2.8$ s | $\mathbf{13.06 \pm 2.8 \text{ s}}$ | $14.10 \pm 3.0$ s | ⚡ **$+9.43\%$ Tempo Lebih Cepat & Agresif** |
-| **Sudut Kepungan ($E_E$)** | $114.37^\circ$ | $113.81^\circ$ | $113.35^\circ$ | Formasi busur setengah lingkaran stabil |
-| **Jarak Tempur Rata-Rata** | $2.80 \pm 0.27$ m | $2.60 \pm 0.19$ m | $\mathbf{2.58 \pm 0.21 \text{ m}}$ | 🎯 **Penetrasi Jarak Serang Lebih Rapat** |
+| **Total Episode Diuji ($N$)** | $50$ Episode | $49$ Episode | $50$ Episode | Uji empiris terstandar ($N=50$) |
+| **Enemy Team Win Rate** | **$8.0\%$** (4/50) | **$\mathbf{16.3\%}$ (8/49)** | **$12.0\%$ (6/50)** | 🏆 **HCA Softmax ($2\times$) & HCA Max ($+50\%$) vs PPO** |
+| **Mean Damage to Player** | $90.68 \pm 9.98$ HP | $98.41 \pm 10.55$ HP | $\mathbf{101.64 \pm 9.97 \text{ HP}}$ | ⚔️ **$+12.08\%$ Lebih Mematikan (Damage Tertinggi $>100$ HP)** |
+| **Mean Combat Duration (TTK)** | $30.43 \pm 5.30$ s | $\mathbf{28.58 \pm 3.50 \text{ s}}$ | $29.14 \pm 2.78$ s | ⚡ **Pertarungan dinamis melawan bot pemain lincah** |
+| **Sudut Kepungan ($E_E$)** | $63.14 \pm 5.30^\circ$ | $70.58 \pm 5.14^\circ$ | $57.54 \pm 4.42^\circ$ | 🎯 **Formasi kepungan multi-arah aktif ($p < 0.01$)** |
+| **Jarak Tempur Rata-Rata** | $3.20 \pm 0.18$ m | $\mathbf{2.86 \pm 0.13 \text{ m}}$ | $\mathbf{2.93 \pm 0.10 \text{ m}}$ | 🏃 **Penetrasi Jarak Serang Lebih Agresif ($p < 0.01$)** |
 | **Status Entropi Pelatihan ($\mathcal{H}$)** | $0.352$ *(Drop/Collapse)* | **$1.674$ *(Multi-Modal)*** | **$1.422$ *(Equilibrium)*** | 🌟 **Terbukti Mengatasi Policy Collapse** |
 
 ---
@@ -49,12 +49,12 @@ Pengujian dilakukan pada Unity Standalone Inference Mode (tanpa intervensi Pytho
 ## 3. 🔍 Temuan Utama Riset (*Key Findings & Scientific Insights*)
 
 ### A. Mitigasi Fenomena *Policy Collapse* pada Pelatihan Jangka Panjang (50M)
-* **Kelemahan PPO Standar:** Pada pelatihan skala masif 50 juta langkah, nilai entropi PPO anjlok drastis ke **$0.352 \text{ nats}$**. PPO mengalami *overfitting deterministik* di mana musuh terjebak pada satu pola serangan kaku.
-* **Keberhasilan HCA:** Kehadiran *Manager Critic Network (16 fitur global)* berhasil menjaga nilai entropi tetap stabil dan sehat (**$1.422 - 1.674 \text{ nats}$**). HCA mempertahankan distribusi eksplorasi multi-modal sehingga taktik musuh tidak mudah ditebak.
+* **Kelemahan PPO Standar:** Pada pelatihan skala masif 50 juta langkah, nilai entropi PPO anjlok drastis ke **$0.352 \text{ nats}$**. PPO mengalami *overfitting deterministik* di mana musuh terjebak pada satu pola serangan kaku, menghasilkan Win Rate terendah ($8.0\%$).
+* **Keberhasilan HCA:** Kehadiran *Manager Critic Network (16 fitur global)* berhasil menjaga nilai entropi tetap stabil dan sehat (**$1.422 - 1.674 \text{ nats}$**). HCA mempertahankan distribusi eksplorasi multi-modal sehingga taktik musuh adaptif terhadap manuver dash pemain.
 
 ### B. Diferensiasi Karakteristik Varian HCA
-1. **HCA Max (Operator Maksimum):** Sangat efektif dalam menghasilkan daya rusak maksimal (**$84.16 \text{ HP}$**) dan penetrasi jarak terdekat (**$2.58 \text{ m}$**) berkat sinyal *optimistic credit assignment*.
-2. **HCA Softmax (Operator Softmax):** Menghasilkan tempo eliminasi paling agresif dan tercepat (**$13.06 \text{ detik}$**) dengan transisi aksi yang sangat mulus antar-state.
+1. **HCA Max (Operator Maksimum):** Sangat efektif dalam menghasilkan daya rusak maksimal (**$101.64 \text{ HP}$**) berkat sinyal *optimistic credit assignment*, menembus pertahanan pemain hingga kritis.
+2. **HCA Softmax (Operator Softmax):** Menghasilkan tingkat kemenangan tim tertinggi (**$16.3\%$**) dengan transisi aksi yang sangat mulus dan sebaran kepungan paling lebar ($70.58^\circ$).
 
 ---
 

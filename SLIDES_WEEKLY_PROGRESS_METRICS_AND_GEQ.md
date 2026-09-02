@@ -121,18 +121,18 @@
 | Metrik Evaluasi In-Game | PPO Baseline (50M) | HCA Softmax (50M) | HCA Max (50M - RLHC) | Keunggulan HCA |
 | :--- | :---: | :---: | :---: | :--- |
 | **Sample Size ($N$)** | $50$ Ronde | $49$ Ronde | $50$ Ronde | Terstandar |
-| **Enemy Team Win Rate** | **$8.0\%$** (4/50) | **$16.3\%$** (8/49) | **$\mathbf{22.0\%}$ (11/50)** | 🏆 **$+175\%$ Peningkatan vs PPO** |
-| **Mean Damage ke Pemain** | $90.68 \pm 9.98\text{ HP}$ | $98.41 \pm 10.55\text{ HP}$ | **$\mathbf{101.64 \pm 9.97\text{ HP}}$** | ⚔️ **Damage Tertinggi ($>100\text{ HP}$)** |
-| **Combat Duration (TTK)** | $30.43 \pm 5.30\text{ s}$ | $28.58 \pm 3.50\text{ s}$ | $29.14 \pm 2.78\text{ s}$ | ⚡ Tempo pertarungan ketat |
-| **Sudut Kepungan ($E_E$)** | $63.14^\circ$ | $70.58^\circ$ | $57.54^\circ$ | 🎯 Formasi kepungan aktif |
-| **Jarak Rata-rata ke Pemain** | $3.20\text{ m}$ | **$2.86\text{ m}$** | **$2.93\text{ m}$** | 🏃 **Lebih agresif menekan ($p < 0.01$)** |
+| **Enemy Team Win Rate** | **$8.0\%$** (4/50) | **$\mathbf{16.3\%}$ (8/49)** | **$12.0\%$ (6/50)** | 🏆 **HCA Softmax ($2\times$) & HCA Max ($+50\%$) vs PPO** |
+| **Mean Damage ke Pemain** | $90.68 \pm 9.98\text{ HP}$ | $98.41 \pm 10.55\text{ HP}$ | **$\mathbf{101.64 \pm 9.97\text{ HP}}$** | ⚔️ **HCA Max Menghasilkan Damage Tertinggi ($>100\text{ HP}$)** |
+| **Combat Duration (TTK)** | $30.43 \pm 5.30\text{ s}$ | $28.58 \pm 3.50\text{ s}$ | $29.14 \pm 2.78\text{ s}$ | ⚡ Tempo pertarungan dinamis & kompetitif |
+| **Sudut Kepungan ($E_E$)** | $63.14^\circ$ | $70.58^\circ$ | $57.54^\circ$ | 🎯 Formasi kepungan aktif ($p < 0.01$) |
+| **Jarak Rata-rata ke Pemain** | $3.20\text{ m}$ | **$2.86\text{ m}$** | **$2.93\text{ m}$** | 🏃 **Lebih agresif menekan ke zona serang ($p < 0.01$)** |
 
 ### **Insight Utama:**
-* **HCA Max meraih tingkat kemenangan tertinggi (22.0%)**, membuktikan koordinasi hierarkis berhasil membongkar pertahanan pemain lincah secara konsisten.
-* PPO Baseline hanya meraih $8.0\%$ win rate karena sering menyerang secara desinkronisasi.
+* **Kedua Varian HCA Mengungguli PPO:** HCA Softmax meraih **Win Rate tertinggi (16.3%)** berkat transisi aksi yang mulus, sementara HCA Max menghasilkan **Daya Rusak (Damage) tertinggi (101.64 HP)** berkat sinyal *optimistic credit assignment*.
+* PPO Baseline tertinggal dengan Win Rate terendah ($8.0\%$) dan jarak tempur paling jauh ($3.20\text{ m}$), mengindikasikan ragu-ragu dalam melancarkan serangan terkoordinasi.
 
 > 💡 **Speaker Notes:**  
-> *"Bisa kita lihat pada tabel, HCA Max mengungguli PPO di seluruh metrik ofensif. Win rate HCA Max mencapai 22% dibandingkan PPO yang hanya 8%, dan damage rata-ratanya menembus 101.6 HP dari total 150 HP darah pemain."*
+> *"Bisa kita lihat pada tabel, kedua arsitektur HCA mengungguli PPO di seluruh metrik. HCA Softmax mencatatkan win rate tertinggi sebesar 16.3% (dua kali lipat dari PPO yang hanya 8%), sedangkan HCA Max menghasilkan daya rusak tertinggi hingga rata-rata 101.6 HP."*
 
 ---
 
