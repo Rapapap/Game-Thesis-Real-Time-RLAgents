@@ -37,7 +37,7 @@
 
 ## Integration points and external code boundaries
 - HCA trainer implementation lives in vendored Python source: `ml-agents/ml-agents/mlagents/trainers/hca/{trainer.py,optimizer_torch.py}`.
-- HCA config expects manager observation sensor index `manager_obs_index: -1`; if sensor order changes in prefabs, update YAML accordingly.
+- HCA config expects manager observation sensor index `manager_obs_index: 0` (since ML-Agents sorts sensors alphabetically by name: `ManagerObservation`, `StackingSensor_size3_RayPerceptionSensor`, `VectorSensor_size24`); `optimizer_torch.py` also auto-detects the `ManagerObservation` sensor by name.
 - Unity prefabs (`Assets/Level/RL Scenes/Training/Art/Models/RL Agents/*.prefab`) define action/observation sizes and decision cadence (`DecisionPeriod: 5`); keep code and prefab settings synchronized.
 
 ## Safe-edit checklist for agents

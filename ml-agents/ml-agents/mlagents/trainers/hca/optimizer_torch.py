@@ -17,7 +17,10 @@ from mlagents.torch_utils import torch, default_device
 
 from mlagents.trainers.buffer import AgentBuffer, BufferKey, RewardSignalUtil
 
+from mlagents_envs.logging_util import get_logger
 from mlagents_envs.timers import timed
+
+logger = get_logger(__name__)
 from mlagents.trainers.policy.torch_policy import TorchPolicy
 from mlagents.trainers.optimizer.torch_optimizer import TorchOptimizer
 from mlagents.trainers.settings import (
@@ -55,7 +58,7 @@ class HCASettings(OnPolicyHyperparamSettings):
     manager_num_layers: int = 2
     manager_learning_rate: float = 3.0e-4
     hca_value_method: str = "max"  # "max" (RLHC Eq.16) or "softmax" (HCA paper)
-    manager_obs_index: int = -1  # Index of the manager observation sensor (-1 = last)
+    manager_obs_index: int = 0  # Index of the manager observation sensor (0 = ManagerObservation when sorted alphabetically)
 
 
 class TorchHCAOptimizer(TorchOptimizer):
@@ -85,10 +88,21 @@ class TorchHCAOptimizer(TorchOptimizer):
         all_obs_specs = list(policy.behavior_spec.observation_specs)
         n_obs = len(all_obs_specs)
 
-        # Manager observation index: by default, the last sensor
-        manager_idx = self.hyperparameters.manager_obs_index
-        if manager_idx < 0:
-            manager_idx = n_obs + manager_idx  # Convert negative index
+        # Manager observation index:
+        # ML-Agents sorts sensors alphabetically by name (SensorUtils.SortSensors),
+        # which places "ManagerObservation" at index 0 before "StackingSensor_..." and "VectorSensor_...".
+        # Auto-detect "ManagerObservation" by sensor name if present; otherwise use manager_obs_index.
+        named_manager_indices = [
+            i
+            for i, spec in enumerate(all_obs_specs)
+            if getattr(spec, "name", "") == "ManagerObservation"
+        ]
+        if named_manager_indices:
+            manager_idx = named_manager_indices[0]
+        else:
+            manager_idx = self.hyperparameters.manager_obs_index
+            if manager_idx < 0:
+                manager_idx = n_obs + manager_idx  # Convert negative index
 
         # Split observation specs
         self.manager_obs_index = manager_idx
@@ -97,6 +111,19 @@ class TorchHCAOptimizer(TorchOptimizer):
 
         worker_obs_specs = [all_obs_specs[i] for i in self.worker_obs_indices]
         manager_obs_specs = [all_obs_specs[manager_idx]]
+
+        logger.info(
+            f"[HCA] Manager Critic sensor (idx={self.manager_obs_index}): "
+            f"{getattr(all_obs_specs[self.manager_obs_index], 'name', 'unnamed')} "
+            f"shape={all_obs_specs[self.manager_obs_index].shape}"
+        )
+        logger.info(
+            f"[HCA] Worker Critic sensors (idx={self.worker_obs_indices}): "
+            + ", ".join(
+                f"{getattr(all_obs_specs[i], 'name', 'unnamed')} shape={all_obs_specs[i].shape}"
+                for i in self.worker_obs_indices
+            )
+        )
 
         # ---- Actor parameters (shared, same as PPO) ----
         actor_worker_params = list(self.policy.actor.parameters())

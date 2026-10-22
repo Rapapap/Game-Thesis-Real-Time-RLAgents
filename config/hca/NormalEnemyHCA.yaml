@@ -36,7 +36,7 @@ behaviors:
       manager_num_layers: 2         # Manager critic network depth
       manager_learning_rate: 0.0003 # Manager critic learning rate
       hca_value_method: softmax         # "softmax" (HCA paper) avoids overestimation bias from "max" operator
-      manager_obs_index: -1         # Index of manager observation sensor (-1 = last)
+      manager_obs_index: 0          # Index of manager observation sensor (0 = ManagerObservation, sorted alphabetically by ML-Agents)
 
     network_settings:
       normalize: true
